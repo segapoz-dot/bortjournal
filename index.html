@@ -1,0 +1,824 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Борт-журнал ЧПУ</title>
+<meta name="description" content="Журнал ремонтов станков ЧПУ: цеха, станки, записи, схемы.">
+<meta name="theme-color" content="#15171a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Борт-журнал">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
+<style>
+:root{--bg:#15171a;--panel:#1f2226;--panel2:#262a2f;--line:#2e3238;--text:#e6e3dc;--mut:#8d9096;--or:#ff8a1f;--or2:#3a2a12;--orT:#ffb366;
+--red:#e5484d;--teal:#5fd3c4;--fanuc:#e8d84a;--blue:#7fb2ff;--r:12px;color-scheme:dark}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--text);font:15px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+body{padding:env(safe-area-inset-top) 0 calc(env(safe-area-inset-bottom) + 90px)}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+.wrap{max-width:760px;margin:0 auto;padding:0 14px}
+.hz{height:6px;background:repeating-linear-gradient(-45deg,var(--or) 0 9px,var(--bg) 9px 18px)}
+header.top{position:sticky;top:0;z-index:5;background:var(--bg);padding:10px 0 8px;border-bottom:1px solid var(--line)}
+.bar{display:flex;align-items:center;gap:10px}
+.bar h1{font-size:17px;margin:0;font-weight:600;letter-spacing:.3px;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sub{font-size:12px;color:var(--mut)}
+.ib{background:none;border:0;width:40px;height:40px;border-radius:10px;display:grid;place-items:center;color:var(--text);font-size:22px;flex:none}
+.ib:active{background:var(--panel2)}
+.logo{color:var(--or);font-size:26px}
+.search{display:flex;align-items:center;gap:8px;background:var(--panel2);border:1px solid var(--or);border-radius:var(--r);padding:0 12px;margin-top:10px}
+.search i{color:var(--or);font-size:19px}
+.search input{flex:1;background:none;border:0;outline:0;height:44px;font-size:16px}
+.chips{display:flex;gap:6px;overflow-x:auto;padding:10px 0 2px;scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:none;padding:5px 11px;border-radius:20px;font-size:13px;background:var(--panel2);color:#c9c6bf;border:1px solid transparent;white-space:nowrap}
+.chip.on{border-color:var(--or);color:var(--orT);background:var(--or2)}
+.c-sin{background:#10302e;color:var(--teal)}.c-fan{background:#2b2f12;color:var(--fanuc)}.c-hei{background:#13263f;color:var(--blue)}
+.c-shop{background:var(--or2);color:var(--orT)}.c-gray{background:var(--panel2);color:#c9c6bf}
+h2.sec{font-size:12px;color:var(--mut);font-weight:500;text-transform:uppercase;letter-spacing:.8px;margin:18px 0 8px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.tile{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:10px 12px;text-align:left}
+.tile .n{font-size:22px;font-weight:600;color:var(--or)}
+.tile .d{font-size:12px;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row{display:block;width:100%;text-align:left;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:6px}
+.row.t-fault{border-left:3px solid var(--red);border-radius:0 10px 10px 0}.row.t-setup{border-left:3px solid var(--or);border-radius:0 10px 10px 0}.row.t-guide{border-left:3px solid var(--teal);border-radius:0 10px 10px 0}
+.row .t{font-weight:500}.row .m{font-size:12px;color:var(--mut);margin-top:2px}
+.row mark,.hl{background:#5a3a10;color:#ffd7a8;border-radius:3px;padding:0 2px}
+.fab{position:fixed;right:16px;bottom:calc(env(safe-area-inset-bottom) + 16px);z-index:6;background:var(--or);color:#1a1206;border:0;border-radius:16px;padding:14px 18px;font-weight:600;font-size:15px;display:flex;gap:6px;align-items:center}
+.hero{height:150px;border-radius:var(--r);background:var(--panel2) center/cover;border:1px solid var(--line);display:flex;align-items:flex-end;padding:12px;margin:12px 0 10px;position:relative;overflow:hidden}
+.hero::after{content:"";position:absolute;inset:0;background:linear-gradient(transparent 40%,rgba(0,0,0,.75))}
+.hero>div{position:relative;z-index:1}.hero .nm{font-size:20px;font-weight:600}
+.tabs{display:flex;gap:4px;background:var(--panel);border-radius:10px;padding:3px;margin:10px 0}
+.tabs button{flex:1;border:0;background:none;padding:8px;border-radius:8px;color:var(--mut)}
+.tabs button.on{background:var(--panel2);color:var(--text)}
+.legend{font-size:12px;color:var(--mut);margin-top:8px}
+.photos{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin:10px 0}
+.photos .ph{aspect-ratio:1;border-radius:8px;background:var(--panel2) center/cover;border:0;position:relative}
+.photos .ph .x{position:absolute;top:2px;right:2px;background:rgba(0,0,0,.7);border-radius:50%;width:24px;height:24px;display:grid;place-items:center;font-size:14px}
+.steps{counter-reset:s;margin:6px 0 12px;padding:0;list-style:none}
+.steps li{counter-increment:s;position:relative;padding:5px 0 5px 30px;border-bottom:1px solid var(--line)}
+.steps li::before{content:counter(s);position:absolute;left:0;top:5px;width:22px;height:22px;border-radius:6px;background:var(--or2);color:var(--orT);font-size:12px;display:grid;place-items:center;font-weight:600}
+.params{background:#101214;border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px;margin-bottom:12px}
+.params div{display:flex;gap:10px;padding:3px 0}.params b{color:var(--or);font-weight:500;flex:none;max-width:55%}
+.note{background:#2a1d0c;border-radius:10px;padding:10px 12px;color:#ffcf99;font-size:14px;margin-bottom:12px}
+.prob{background:#2a1214;border-radius:10px;padding:10px 12px;color:#ffb3b5;font-size:14px;margin-bottom:12px}
+.lbl{font-size:12px;color:var(--mut);margin:12px 0 4px}
+.actions{display:flex;gap:8px;margin:16px 0}
+.btn{flex:1;background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:11px;font-weight:500}
+.btn.pri{background:var(--or);border-color:var(--or);color:#1a1206}.btn.dan{color:#ff8f92}
+form.ed label{display:block;font-size:12px;color:var(--mut);margin:12px 0 4px}
+form.ed input,form.ed select,form.ed textarea{width:100%;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 12px;outline:0;font-size:16px}
+form.ed textarea{min-height:90px;resize:vertical}
+form.ed input:focus,form.ed select:focus,form.ed textarea:focus{border-color:var(--or)}
+.hint{font-size:12px;color:var(--mut);margin-top:3px}
+.seg{display:flex;gap:6px}.seg button{flex:1;border:1px solid var(--line);background:var(--panel);border-radius:10px;padding:9px 4px;font-size:13px}
+.seg button.on.fault{border-color:var(--red);color:#ff9a9d}.seg button.on.setup{border-color:var(--or);color:var(--orT)}.seg button.on.guide{border-color:var(--teal);color:var(--teal)}
+.sch{display:flex;align-items:center;gap:10px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:6px}
+.sch i.big{font-size:26px;color:var(--or)}.sch .tx{flex:1;min-width:0}.sch .st{font-size:12px;color:var(--mut)}
+.sch button{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:6px 9px;font-size:13px;flex:none}
+.empty{color:var(--mut);text-align:center;padding:24px 10px;font-size:14px}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:20;display:flex;align-items:flex-end;justify-content:center}
+.modal>div{background:var(--panel);border-radius:18px 18px 0 0;padding:18px 16px calc(env(safe-area-inset-bottom) + 16px);width:100%;max-width:560px;max-height:88vh;overflow:auto}
+.modal h3{margin:0 0 8px;font-size:17px}.modal p{color:#c9c6bf;margin:0 0 12px;white-space:pre-line;font-size:14px}
+.modal .opt{display:block;width:100%;text-align:left;margin-bottom:6px}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom) + 84px);background:#000;border:1px solid var(--line);color:var(--text);padding:10px 14px;border-radius:12px;z-index:30;font-size:14px;max-width:90vw}
+.lb{position:fixed;inset:0;background:#000;z-index:25;display:flex;flex-direction:column}
+.lb .img{flex:1;overflow:auto;display:flex;align-items:center;justify-content:center;touch-action:pinch-zoom pan-x pan-y}
+.lb img{max-width:100%;max-height:100%}
+.lb .tb{display:flex;justify-content:space-between;padding:calc(env(safe-area-inset-top) + 6px) 8px 6px;color:#fff}
+.pv{position:fixed;inset:0;background:#0d0e10;z-index:22;display:flex;flex-direction:column}
+.pv .tb{display:flex;align-items:center;gap:4px;padding:calc(env(safe-area-inset-top) + 6px) 6px 6px;background:var(--panel);border-bottom:1px solid var(--line)}
+.pv .tb .ttl{flex:1;min-width:0;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pv .sb{display:flex;gap:6px;padding:6px 8px;background:var(--panel);align-items:center}
+.pv .sb input{flex:1;background:var(--panel2);border:1px solid var(--or);border-radius:10px;padding:8px 10px;outline:0;font-size:16px;min-width:0}
+.pv .sb .cnt{font-size:12px;color:var(--mut);min-width:64px;text-align:center}
+.pv .pages{flex:1;overflow:auto;-webkit-overflow-scrolling:touch}
+.pv .pg{margin:8px auto;background:#fff;position:relative}
+.pv .pg canvas{display:block;width:100%;height:100%}
+.pv .pg .hlb{position:absolute;background:rgba(255,138,31,.45);border:2px solid var(--or);border-radius:3px;pointer-events:none}
+.pv .pg .no{position:absolute;top:4px;left:6px;font-size:11px;color:#666;font-family:sans-serif}
+.prog{height:4px;background:var(--panel2);border-radius:2px;overflow:hidden;margin:8px 0}.prog div{height:100%;background:var(--or);width:0}
+.foot{text-align:center;color:var(--mut);font-size:12px;margin:28px 0 8px}
+</style>
+</head>
+<body>
+<div class="hz"></div>
+<div id="app"></div>
+<div id="layer"></div>
+<input type="file" id="fpick" accept="image/*" multiple hidden>
+<input type="file" id="dpick" webkitdirectory multiple hidden>
+<input type="file" id="jpick" accept=".json,application/json" hidden>
+<input type="file" id="spick" accept="application/pdf,.pdf" hidden>
+
+<script>
+// ===== Настройка Яндекс Диска =====
+// ClientID приложения с https://oauth.yandex.ru (права: «Доступ к папке приложения на Диске»).
+const YANDEX_CLIENT_ID = 'c898a0b8453a4af3a0e7a488aec34ff6';
+
+const LS = 'bort-v1', LS_TOKEN = 'bort-ya', YA_DATA = 'app:/bortjournal.json', FILES = 'bort-files';
+const TYPES = { fault: 'Неисправность', setup: 'Настройка', guide: 'Инструкция' };
+const KINDS = { electro: 'Электросхемы', hydro: 'Гидро / пневмо' };
+const CNCS = ['Sinumerik 840D', 'FANUC', 'Heidenhain', 'HURCO WinMax', 'Okuma OSP', 'Mitsubishi'];
+const UNITS = ['Оси', 'Оси / линейки', 'Оси / конечники', 'Оси / подача', 'Шпиндель', 'Шпиндель / зажим', 'Поворотная голова', 'Магазин / смена инструмента',
+  'Револьверная головка', 'Щуп / Renishaw', 'СОЖ', 'Гидравлика', 'Электрика', 'PLC', 'Датчики', 'Архив', 'Программирование', 'Прочее'];
+
+const $ = s => document.querySelector(s);
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+const low = s => String(s || '').toLowerCase().replace(/ё/g, 'е');
+const fmtDate = d => d ? d.split('-').reverse().join('.') : '';
+const today = () => new Date().toISOString().slice(0, 10);
+const mb = n => (n / 1048576).toFixed(n > 1048576 * 10 ? 0 : 1) + ' МБ';
+const hhmm = ts => new Date(ts).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+const cncClass = c => /sinum|siemens/i.test(c) ? 'c-sin' : /fanuc/i.test(c) ? 'c-fan' : /heiden/i.test(c) ? 'c-hei' : 'c-gray';
+const plural = (n, a, b, c) => n + ' ' + (n % 10 === 1 && n % 100 !== 11 ? a : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20) ? b : c);
+const zap = n => plural(n, 'запись', 'записи', 'записей');
+const cncShort = c => String(c || '').replace('Sinumerik 840D', '840D');
+
+// ---------- состояние ----------
+let DB = { machines: [], entries: [], schemes: [], deleted: {} };
+let UI = { cnc: '' }, PENDING = [], yaToken = '', LOCALDATA = false;
+const SYNC = { state: 'off', at: 0 };
+let VIEW = { name: 'home' }, HISTORY = [], SEARCH = '';
+
+function loadLocal() {
+  try {
+    const s = JSON.parse(localStorage.getItem(LS));
+    if (s) { DB = s.db || DB; UI = { ...UI, ...(s.ui || {}) }; PENDING = s.pending || []; }
+    yaToken = localStorage.getItem(LS_TOKEN) || '';
+  } catch (e) {}
+  DB.deleted ||= {}; DB.schemes ||= [];
+}
+function saveLocal() {
+  try { localStorage.setItem(LS, JSON.stringify({ db: DB, ui: UI, pending: PENDING })); }
+  catch (e) { toast('Не удалось сохранить: память браузера переполнена.'); }
+}
+const touch = o => { if (o) o.updated = Date.now(); saveLocal(); syncSoon(); };
+const machine = id => DB.machines.find(m => m.id === id);
+const entriesOf = id => DB.entries.filter(e => e.machine === id).sort((a, b) => b.date.localeCompare(a.date));
+const shopsAll = () => [...new Set(DB.machines.flatMap(m => m.shops || []))].sort((a, b) => a.localeCompare(b, 'ru', { numeric: true }));
+
+// ---------- файлы: кэш устройства + Яндекс Диск ----------
+const fkey = p => new URL('./__files/' + p, location.href).href;
+async function cacheGet(p) { try { const c = await caches.open(FILES); const r = await c.match(fkey(p)); return r ? r.blob() : null; } catch (e) { return null; } }
+async function cachePut(p, blob) { try { const c = await caches.open(FILES); await c.put(fkey(p), new Response(blob)); } catch (e) {} }
+async function cacheDel(p) { try { const c = await caches.open(FILES); await c.delete(fkey(p)); } catch (e) {} }
+async function cacheHas(p) { try { const c = await caches.open(FILES); return !!(await c.match(fkey(p))); } catch (e) { return false; } }
+
+async function getFile(p, { keep = true, progress } = {}) {
+  const hit = await cacheGet(p); if (hit) return hit;
+  let blob = null;
+  if (LOCALDATA) { const r = await fetch('data/' + p); if (r.ok) blob = await r.blob(); }
+  if (!blob && yaToken) blob = await yaGetBlob('app:/' + p, progress);
+  if (!blob) throw 'nofile';
+  if (keep) await cachePut(p, blob);
+  return blob;
+}
+const urlCache = new Map();
+async function fileURL(p) {
+  if (urlCache.has(p)) return urlCache.get(p);
+  const u = URL.createObjectURL(await getFile(p)); urlCache.set(p, u); return u;
+}
+function fillImages(root = document) {
+  root.querySelectorAll('[data-img]').forEach(async el => {
+    const p = el.dataset.img; el.removeAttribute('data-img');
+    try { el.style.backgroundImage = `url("${await fileURL(p)}")`; } catch (e) { el.classList.add('noimg'); }
+  });
+}
+
+// ---------- Яндекс Диск ----------
+const yaRedirect = () => location.origin + location.pathname;
+const yaAuthUrl = manual => 'https://oauth.yandex.ru/authorize?response_type=token&client_id=' + encodeURIComponent(YANDEX_CLIENT_ID)
+  + '&redirect_uri=' + encodeURIComponent(manual ? 'https://oauth.yandex.ru/verification_code' : yaRedirect());
+async function yaApi(path, opts = {}) {
+  const r = await fetch('https://cloud-api.yandex.net/v1/disk' + path, { ...opts, headers: { Authorization: 'OAuth ' + yaToken, Accept: 'application/json' } });
+  if (r.status === 401 || r.status === 403) throw 'auth';
+  return r;
+}
+async function readWithProgress(resp, progress) {
+  const total = +resp.headers.get('content-length') || 0;
+  if (!progress || !resp.body || !total) return resp.blob();
+  const rd = resp.body.getReader(), parts = []; let got = 0;
+  for (;;) { const { done, value } = await rd.read(); if (done) break; parts.push(value); got += value.length; progress(got / total); }
+  return new Blob(parts);
+}
+async function yaGetBlob(path, progress) {
+  const r = await yaApi('/resources/download?path=' + encodeURIComponent(path));
+  if (r.status === 404) return null;
+  if (!r.ok) throw 'net';
+  const { href } = await r.json();
+  const f = await fetch(href, { referrerPolicy: 'no-referrer', cache: 'no-store' });
+  if (!f.ok) throw 'net';
+  return readWithProgress(f, progress);
+}
+async function yaPut(path, blob) {
+  const r = await yaApi('/resources/upload?overwrite=true&path=' + encodeURIComponent(path));
+  if (r.status === 409) { await yaMkdirFor(path); return yaPut(path, blob); }
+  if (!r.ok) throw 'net';
+  const { href } = await r.json();
+  const u = await fetch(href, { method: 'PUT', referrerPolicy: 'no-referrer', body: blob });
+  if (!u.ok) throw 'net';
+}
+const madeDirs = new Set();
+async function yaMkdirFor(path) {
+  const parts = path.replace('app:/', '').split('/').slice(0, -1);
+  let cur = 'app:';
+  for (const p of parts) {
+    cur += '/' + p; if (madeDirs.has(cur)) continue;
+    const r = await yaApi('/resources?path=' + encodeURIComponent(cur), { method: 'PUT' });
+    if (!r.ok && r.status !== 409) throw 'net';
+    madeDirs.add(cur);
+  }
+}
+async function yaDelete(path) { try { await yaApi('/resources?permanently=false&path=' + encodeURIComponent(path), { method: 'DELETE' }); } catch (e) {} }
+
+function mergeList(a, b, del) {
+  const map = new Map();
+  for (const x of b || []) map.set(x.id, x);
+  for (const x of a || []) { const o = map.get(x.id); if (!o || (x.updated || 0) >= (o.updated || 0)) map.set(x.id, x); }
+  for (const [id, ts] of Object.entries(del)) { const x = map.get(id); if (x && (x.updated || 0) <= ts) map.delete(id); }
+  return [...map.values()];
+}
+function merge(r) {
+  const del = { ...DB.deleted };
+  for (const [id, ts] of Object.entries(r.deleted || {})) del[id] = Math.max(del[id] || 0, ts);
+  return { machines: mergeList(DB.machines, r.machines, del), entries: mergeList(DB.entries, r.entries, del), schemes: mergeList(DB.schemes, r.schemes, del), deleted: del };
+}
+const sig = d => JSON.stringify(['machines', 'entries', 'schemes'].map(k => (d[k] || []).map(x => x.id + ':' + (x.updated || 0)).sort())) + Object.keys(d.deleted || {}).length;
+
+let syncing = false, syncAgain = false, syncTimer;
+function syncSoon(ms = 2500) { if (!yaToken) return; clearTimeout(syncTimer); syncTimer = setTimeout(() => sync(), ms); }
+async function sync(manual) {
+  if (!yaToken) return;
+  if (syncing) { syncAgain = true; return; }
+  syncing = true; SYNC.state = 'sync'; setStatus();
+  try {
+    await flushPending();
+    const blob = await yaGetBlob(YA_DATA);
+    const remote = blob ? JSON.parse(await blob.text()) : null;
+    const before = sig(DB);
+    const m = merge(remote || {});
+    const changed = sig(m) !== before;
+    DB = m; saveLocal();
+    if (!remote || sig(remote) !== sig(DB)) await yaPut(YA_DATA, new Blob([JSON.stringify({ app: 'bortjournal', v: 1, ...DB, savedAt: Date.now() })], { type: 'application/json' }));
+    SYNC.state = 'ok'; SYNC.at = Date.now();
+    if (changed) render();
+    if (manual) toast('Синхронизировано с Яндекс Диском');
+  } catch (e) {
+    if (e === 'auth') { yaToken = ''; try { localStorage.removeItem(LS_TOKEN); } catch (x) {} SYNC.state = 'auth'; toast('Вход в Яндекс истёк. Подключи Диск заново — данные на телефоне целы.'); }
+    else { SYNC.state = 'offline'; if (manual) toast('Нет связи с Яндекс Диском. Всё сохранено на устройстве.'); }
+  }
+  syncing = false; setStatus();
+  if (syncAgain) { syncAgain = false; syncSoon(500); }
+}
+async function flushPending() {
+  while (PENDING.length) {
+    const p = PENDING[0], blob = await cacheGet(p);
+    if (blob) await yaPut('app:/' + p, blob);
+    PENDING.shift(); saveLocal();
+  }
+}
+function setStatus() {
+  const el = $('#sync'); if (!el) return;
+  el.textContent = LOCALDATA && !yaToken ? 'локальная копия' : !yaToken ? (SYNC.state === 'auth' ? '⚠ войди в Яндекс' : 'только на устройстве')
+    : SYNC.state === 'sync' ? 'синхронизирую…' : SYNC.state === 'ok' ? '☁ Диск · ' + hhmm(SYNC.at) + (PENDING.length ? ' · ждут ' + PENDING.length : '')
+    : SYNC.state === 'offline' ? 'нет связи · сохранено тут' : '☁ Яндекс Диск';
+}
+function readOAuthReturn() {
+  const h = new URLSearchParams(location.hash.slice(1));
+  if (h.get('access_token')) { yaToken = h.get('access_token'); try { localStorage.setItem(LS_TOKEN, yaToken); } catch (e) {} history.replaceState(null, '', location.pathname); toast('Яндекс Диск подключён'); }
+  else if (h.get('error')) { history.replaceState(null, '', location.pathname); toast('Вход в Яндекс не выполнен'); }
+}
+
+// ---------- окна ----------
+function ask({ title, text = '', options = null, ok = 'OK', cancel = 'Отмена', danger = false, input = null, value = '' }) {
+  return new Promise(res => {
+    const L = $('#layer'), m = document.createElement('div'); m.className = 'modal';
+    m.innerHTML = `<div><h3>${esc(title)}</h3>${text ? `<p>${esc(text)}</p>` : ''}${input !== null ? `<form class="ed"><input id="ain" placeholder="${esc(input)}" value="${esc(value)}"></form>` : ''}
+      <div id="aopts"></div><div class="actions">${options ? `<button class="btn" data-v="">${cancel}</button>` : `<button class="btn" data-v="">${cancel}</button><button class="btn ${danger ? 'dan' : 'pri'}" data-v="ok">${ok}</button>`}</div></div>`;
+    const done = v => { m.remove(); res(v); };
+    (options || []).forEach(o => { const b = document.createElement('button'); b.className = 'btn opt'; b.innerHTML = o.label; b.onclick = () => done(o.value); m.querySelector('#aopts').appendChild(b); });
+    m.querySelectorAll('[data-v]').forEach(b => b.onclick = () => done(b.dataset.v === 'ok' ? (input !== null ? m.querySelector('#ain').value.trim() || null : true) : null));
+    m.onclick = ev => { if (ev.target === m) done(null); };
+    const f = m.querySelector('form'); if (f) f.onsubmit = ev => { ev.preventDefault(); done(m.querySelector('#ain').value.trim() || null); };
+    L.appendChild(m); if (input !== null) setTimeout(() => m.querySelector('#ain').focus(), 50);
+  });
+}
+let toastT;
+function toast(t) { let el = $('.toast'); if (!el) { el = document.createElement('div'); el.className = 'toast'; document.body.appendChild(el); } el.textContent = t; el.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => el.hidden = true, 3200); }
+
+// ---------- навигация ----------
+function go(v) { HISTORY.push({ ...VIEW, y: scrollY }); VIEW = v; render(); scrollTo(0, 0); history.pushState({ d: HISTORY.length }, ''); }
+function back() { if (!HISTORY.length) return; const v = HISTORY.pop(); VIEW = v; render(); scrollTo(0, v.y || 0); }
+addEventListener('popstate', () => { if ($('#layer').children.length) { $('#layer').lastElementChild.remove(); history.pushState({}, ''); return; } back(); });
+
+function header(title, sub, right = '') {
+  return `<header class="top"><div class="wrap"><div class="bar">${VIEW.name === 'home' ? '<i class="ti ti-settings-2 logo"></i>' : '<button class="ib" onclick="history.back()" aria-label="Назад"><i class="ti ti-arrow-left"></i></button>'}
+    <div style="flex:1;min-width:0"><h1>${esc(title)}</h1><div class="sub">${sub}</div></div>${right}</div></div></header>`;
+}
+function entryRow(x, q) {
+  const m = machine(x.machine);
+  const meta = [m ? m.name : (x.cnc || 'Общее'), x.shop ? 'цех ' + x.shop : '', x.unit, fmtDate(x.date), x.photos?.length ? x.photos.length + ' фото' : ''].filter(Boolean).join(' · ');
+  return `<button class="row t-${x.type}" onclick="go({name:'entry',id:'${x.id}'})"><div class="t">${mark(x.title, q)}</div><div class="m">${esc(meta)}</div>${q ? snippet(x, q) : ''}</button>`;
+}
+function mark(t, q) { t = esc(t); if (!q) return t; const i = low(t).indexOf(low(q)); return i < 0 ? t : t.slice(0, i) + '<mark>' + t.slice(i, i + q.length) + '</mark>' + t.slice(i + q.length); }
+function entryText(x) { return [x.title, x.problem, ...(x.steps || []), ...(x.params || []).map(p => p.k + ' ' + p.v), x.note, x.unit, x.cnc, x.shop ? 'цех ' + x.shop : '', machine(x.machine)?.name].join(' \n '); }
+function snippet(x, q) {
+  const all = [x.problem, ...(x.steps || []), ...(x.params || []).map(p => p.k + ' — ' + p.v), x.note].filter(Boolean);
+  const hit = all.find(s => low(s).includes(low(q)) && !low(x.title).includes(low(q)));
+  return hit ? `<div class="m" style="color:#c9c6bf">${mark(hit.length > 110 ? hit.slice(0, 110) + '…' : hit, q)}</div>` : '';
+}
+
+// ---------- экраны ----------
+function render() {
+  const A = $('#app'), v = VIEW;
+  const fn = { home: vHome, shop: vShop, machine: vMachine, entry: vEntry, edit: vEdit, medit: vMEdit, general: vGeneral, settings: vSettings }[v.name] || vHome;
+  A.innerHTML = fn(v); fillImages(A); setStatus();
+  const s = $('#q'); if (s && v.name === 'home') { s.value = SEARCH; s.oninput = () => { SEARCH = s.value; renderResults(); }; if (SEARCH) renderResults(); }
+}
+
+function vHome() {
+  const shops = shopsAll();
+  const noShop = DB.machines.filter(m => !(m.shops || []).length).sort((a, b) => a.name.localeCompare(b.name));
+  const cncs = [...new Set(DB.machines.map(m => m.cnc).concat(DB.entries.map(e => e.cnc)).filter(Boolean))];
+  const ent = DB.entries.filter(e => !UI.cnc || e.cnc === UI.cnc);
+  const recent = [...ent].sort((a, b) => b.date.localeCompare(a.date) || (b.updated || 0) - (a.updated || 0)).slice(0, 6);
+  const mf = m => !UI.cnc || m.cnc === UI.cnc;
+  return header('Борт-журнал ЧПУ', `by Sega Mega · ${zap(DB.entries.length)} · <span id="sync"></span>`, '<button class="ib" onclick="go({name:\'settings\'})" aria-label="Настройки"><i class="ti ti-cloud-cog"></i></button>')
+  + `<div class="wrap"><div class="search"><i class="ti ti-search"></i><input id="q" type="search" placeholder="1815, Hurco, K12, щуп…" autocomplete="off" enterkeyhint="search"></div>
+  <div class="chips"><button class="chip ${!UI.cnc ? 'on' : ''}" onclick="setCnc('')">Все</button>${cncs.map(c => `<button class="chip ${cncClass(c)} ${UI.cnc === c ? 'on' : ''}" onclick="setCnc('${esc(c)}')">${esc(cncShort(c))}</button>`).join('')}</div>
+  <div id="res"></div><div id="main">
+  ${!DB.entries.length ? `<div class="empty">Журнал пуст.<br>Подключи Яндекс Диск в настройках <i class="ti ti-cloud-cog"></i> — записи подтянутся.</div>` : ''}
+  <h2 class="sec">Цеха</h2><div class="grid">${shops.map(s => { const ms = DB.machines.filter(m => (m.shops || []).includes(s) && mf(m)); return ms.length || !UI.cnc ? `<button class="tile" onclick="go({name:'shop',shop:'${s}'})"><div class="n">${esc(s)}</div><div class="d">${esc(ms.map(m => m.name).join(', ') || '—')}</div></button>` : ''; }).join('')}
+  <button class="tile" onclick="go({name:'general'})"><div class="n" style="color:var(--teal)"><i class="ti ti-book-2"></i></div><div class="d">Общие инструкции</div></button></div>
+  <h2 class="sec">Станки без цеха</h2>${noShop.filter(mf).map(machineRow).join('')}
+  <h2 class="sec">Последние записи</h2>${recent.map(x => entryRow(x)).join('')}
+  <div class="foot">Борт-журнал ЧПУ · by Sega Mega</div></div></div>
+  <button class="fab" onclick="newEntry()"><i class="ti ti-plus"></i>Новая запись</button>`;
+}
+function setCnc(c) { UI.cnc = c; saveLocal(); render(); }
+function machineRow(m) {
+  const n = entriesOf(m.id).length, sc = DB.schemes.filter(s => s.machine === m.id).length;
+  return `<button class="row" onclick="go({name:'machine',id:'${m.id}'})"><div class="t">${esc(m.name)}</div><div class="m">${esc([m.cnc, (m.shops || []).length ? 'цех ' + m.shops.join(', ') : '', zap(n), sc ? plural(sc, 'схема', 'схемы', 'схем') : ''].filter(Boolean).join(' · '))}</div></button>`;
+}
+let schIdx = {};
+async function loadIdx(s) {
+  if (schIdx[s.id]) return schIdx[s.id];
+  try { schIdx[s.id] = JSON.parse(await (await getFile('schemes/' + s.id + '.idx.json')).text()); } catch (e) { schIdx[s.id] = {}; }
+  return schIdx[s.id];
+}
+async function renderResults() {
+  const q = SEARCH.trim(), R = $('#res'), M = $('#main'); if (!R) return;
+  if (!q) { R.innerHTML = ''; M.hidden = false; return; }
+  M.hidden = true;
+  const words = low(q).split(/\s+/).filter(Boolean);
+  const ent = DB.entries.filter(e => (!UI.cnc || e.cnc === UI.cnc) && words.every(w => low(entryText(e)).includes(w))).sort((a, b) => b.date.localeCompare(a.date));
+  const ms = DB.machines.filter(m => words.every(w => low([m.name, m.maker, m.cnc, m.note, ...(m.shops || []).map(s => 'цех ' + s)].join(' ')).includes(w)));
+  let html = '';
+  if (ms.length) html += `<h2 class="sec">Станки</h2>` + ms.map(machineRow).join('');
+  html += `<h2 class="sec">Записи · ${ent.length}</h2>` + (ent.length ? ent.map(x => entryRow(x, words[0])).join('') : '<div class="empty">Ничего не нашлось</div>');
+  html += '<div id="schres"></div>';
+  R.innerHTML = html;
+  const tag = q.toUpperCase().replace(/^[-+=]/, '');
+  if (/\d/.test(tag) && DB.schemes.length) {
+    const hits = [];
+    for (const s of DB.schemes) { const idx = await loadIdx(s); const pg = idx[tag]; if (pg) hits.push({ s, pg }); }
+    if (SEARCH.trim() !== q) return;
+    const el = $('#schres'); if (el && hits.length) el.innerHTML = `<h2 class="sec">В схемах</h2>` + hits.map(h => `<button class="row" onclick="openScheme('${h.s.id}','${esc(tag)}')"><div class="t"><i class="ti ti-schema" style="color:var(--or)"></i> ${esc(tag)} — ${esc(h.s.title)}</div><div class="m">лист ${h.pg.slice(0, 12).join(', ')}${h.pg.length > 12 ? '…' : ''}</div></button>`).join('');
+  }
+}
+
+function vShop(v) {
+  const ms = DB.machines.filter(m => (m.shops || []).includes(v.shop)).sort((a, b) => a.name.localeCompare(b.name));
+  const ent = DB.entries.filter(e => e.shop === v.shop && !machine(e.machine));
+  return header('Цех ' + v.shop, plural(ms.length, 'станок', 'станка', 'станков')) + `<div class="wrap"><h2 class="sec">Станки</h2>${ms.map(machineRow).join('')}${ent.length ? '<h2 class="sec">Записи</h2>' + ent.map(x => entryRow(x)).join('') : ''}</div>
+  <button class="fab" onclick="newEntry({shop:'${v.shop}'})"><i class="ti ti-plus"></i>Запись</button>`;
+}
+
+function vMachine(v) {
+  const m = machine(v.id); if (!m) return header('Станок не найден', '');
+  const tab = v.tab || 'entries', ents = entriesOf(m.id), sch = DB.schemes.filter(s => s.machine === m.id);
+  const cover = m.photo || ents.flatMap(e => e.photos || []).find(p => p.endsWith('.jpg'));
+  return header(m.name, esc([m.maker, m.cnc].filter(Boolean).join(' · ')), `<button class="ib" onclick="go({name:'medit',id:'${m.id}'})" aria-label="Изменить станок"><i class="ti ti-edit"></i></button>`)
+  + `<div class="wrap"><div class="hero" ${cover ? `data-img="thumbs/${esc(cover)}"` : ''}><div><div class="nm">${esc(m.name)}</div><div class="sub" style="color:#ccc">${esc(m.maker || '')}</div></div></div>
+  <div class="chips" style="padding-top:0">${m.cnc ? `<span class="chip ${cncClass(m.cnc)}">${esc(m.cnc)}</span>` : ''}${(m.shops || []).map(s => `<button class="chip c-shop" onclick="go({name:'shop',shop:'${s}'})">цех ${esc(s)}</button>`).join('')}<span class="chip c-gray">${zap(ents.length)}</span></div>
+  ${m.note ? `<div class="note" style="margin-top:8px"><i class="ti ti-info-circle"></i> ${esc(m.note)}</div>` : ''}
+  <div class="tabs"><button class="${tab === 'entries' ? 'on' : ''}" onclick="VIEW.tab='entries';render()">Записи · ${ents.length}</button><button class="${tab === 'schemes' ? 'on' : ''}" onclick="VIEW.tab='schemes';render();schemeStates()">Схемы · ${sch.length}</button></div>
+  ${tab === 'entries' ? (ents.map(x => entryRow(x)).join('') || '<div class="empty">Записей пока нет</div>') + `<div class="legend"><span style="color:var(--red)">■</span> неисправность <span style="color:var(--or)">■</span> настройка <span style="color:var(--teal)">■</span> инструкция</div>`
+    : Object.entries(KINDS).map(([k, t]) => `<h2 class="sec">${t}</h2>` + (sch.filter(s => s.kind === k).map(schemeRow).join('') || '<div class="empty" style="padding:8px">Нет схем</div>')).join('')
+      + `<div class="actions"><button class="btn" onclick="addScheme('${m.id}')"><i class="ti ti-upload"></i> Добавить схему (PDF)</button></div>`}
+  </div><button class="fab" onclick="newEntry({machine:'${m.id}'})"><i class="ti ti-plus"></i>Запись</button>`;
+}
+function schemeRow(s) {
+  return `<div class="sch" id="sch-${s.id}"><i class="ti ti-file-type-pdf big"></i><div class="tx" onclick="openScheme('${s.id}')"><div>${esc(s.title)}</div><div class="st"><span class="state">…</span> · ${s.pages || '?'} листов · ${mb(s.size || 0)}</div></div><span class="act"></span></div>`;
+}
+async function schemeStates() {
+  for (const s of DB.schemes) {
+    const el = document.getElementById('sch-' + s.id); if (!el) continue;
+    const local = await cacheHas('schemes/' + s.file);
+    el.querySelector('.state').innerHTML = local ? '<i class="ti ti-device-mobile"></i> на телефоне' : '<i class="ti ti-cloud"></i> в облаке';
+    el.querySelector('.act').innerHTML = local ? `<button onclick="dropScheme('${s.id}')" aria-label="Удалить с телефона"><i class="ti ti-trash"></i></button>` : `<button onclick="saveScheme('${s.id}')"><i class="ti ti-download"></i> Скачать</button>`;
+  }
+}
+async function saveScheme(id) {
+  const s = DB.schemes.find(x => x.id === id), el = document.getElementById('sch-' + id);
+  const st = el.querySelector('.state');
+  try { await getFile('schemes/' + s.file, { keep: true, progress: f => st.textContent = 'качаю ' + Math.round(f * 100) + '%' }); toast('Схема сохранена на телефон'); }
+  catch (e) { toast(e === 'nofile' && !yaToken ? 'Подключи Яндекс Диск, чтобы скачать схему' : 'Не удалось скачать — нет связи?'); }
+  schemeStates();
+}
+async function dropScheme(id) {
+  const s = DB.schemes.find(x => x.id === id);
+  if (!await ask({ title: 'Удалить с телефона?', text: s.title + '\nВ облаке схема останется.', ok: 'Удалить', danger: true })) return;
+  await cacheDel('schemes/' + s.file); schemeStates();
+}
+function addScheme(mid) {
+  const p = $('#spick'); p.value = '';
+  p.onchange = async () => {
+    const f = p.files[0]; if (!f) return;
+    const kind = await ask({ title: 'Какая это схема?', options: [{ label: '<i class="ti ti-bolt"></i> Электросхема', value: 'electro' }, { label: '<i class="ti ti-droplet"></i> Гидро / пневмо', value: 'hydro' }] });
+    if (!kind) return;
+    const title = await ask({ title: 'Название схемы', input: 'Электросхема общая', value: f.name.replace(/\.pdf$/i, '') });
+    if (!title) return;
+    const id = 's' + uid(), file = id + '.pdf';
+    await cachePut('schemes/' + file, f);
+    let pages = 0;
+    try { const pdf = await (await loadPdfJs()).getDocument({ data: await f.arrayBuffer() }).promise; pages = pdf.numPages; } catch (e) {}
+    DB.schemes.push({ id, machine: mid, kind, title, file, pages, size: f.size, updated: Date.now() });
+    PENDING.push('schemes/' + file); touch(); render(); schemeStates();
+    toast(yaToken ? 'Схема добавлена, отправляю в облако…' : 'Схема сохранена на телефоне');
+  };
+  p.click();
+}
+
+function vEntry(v) {
+  const x = DB.entries.find(e => e.id === v.id); if (!x) return header('Запись удалена', '');
+  const m = machine(x.machine);
+  return header(m ? m.name : (x.cnc || 'Общая инструкция'), esc([x.shop ? 'цех ' + x.shop : '', fmtDate(x.date)].filter(Boolean).join(' · ')),
+    `<button class="ib" onclick="go({name:'edit',id:'${x.id}'})" aria-label="Изменить"><i class="ti ti-edit"></i></button>`)
+  + `<div class="wrap"><h2 style="font-size:19px;margin:14px 0 6px">${esc(x.title)}</h2>
+  <div class="chips" style="padding-top:0"><span class="chip" style="${x.type === 'fault' ? 'background:#2a1214;color:#ff9a9d' : x.type === 'guide' ? 'background:#10302e;color:var(--teal)' : 'background:var(--or2);color:var(--orT)'}">${TYPES[x.type] || ''}</span>
+  ${x.cnc ? `<span class="chip ${cncClass(x.cnc)}">${esc(cncShort(x.cnc))}</span>` : ''}${x.unit ? `<span class="chip c-gray">${esc(x.unit)}</span>` : ''}${m ? `<button class="chip c-shop" onclick="go({name:'machine',id:'${m.id}'})">${esc(m.name)}</button>` : ''}</div>
+  ${x.problem ? `<div class="lbl">Проблема</div><div class="prob">${esc(x.problem)}</div>` : ''}
+  ${x.photos?.length ? `<div class="photos">${x.photos.map((p, i) => p.endsWith('.mov') ? `<button class="ph" onclick="openVideo('${esc(p)}')" style="display:grid;place-items:center"><i class="ti ti-player-play" style="font-size:28px"></i></button>` : `<button class="ph" data-img="thumbs/${esc(p)}" onclick="openPhoto('${x.id}',${i})"></button>`).join('')}</div>` : ''}
+  ${x.steps?.length ? `<div class="lbl">Шаги</div><ol class="steps">${x.steps.map(s => `<li>${linkify(s)}</li>`).join('')}</ol>` : ''}
+  ${x.params?.length ? `<div class="lbl">Параметры</div><div class="params">${x.params.map(p => `<div><b>${esc(p.k)}</b><span>${esc(p.v)}</span></div>`).join('')}</div>` : ''}
+  ${x.note ? `<div class="note"><i class="ti ti-bulb"></i> ${linkify(x.note)}</div>` : ''}
+  <div class="actions"><button class="btn" onclick="go({name:'edit',id:'${x.id}'})"><i class="ti ti-edit"></i> Изменить</button></div></div>`;
+}
+function linkify(s) {
+  let h = esc(s);
+  const m = h.match(/[Сс]хема\s+(.+?):\s*([A-ZА-Я]?\d[\w.]*)\s*—\s*лист\s*(\d+)/);
+  if (m) { const sc = DB.schemes.find(z => low(z.title).includes(low(m[1].trim())) || low(z.id).includes(low(m[1].trim()))); if (sc) h = h.replace(m[0], `<a style="color:var(--or)" href="javascript:openScheme('${sc.id}','${m[2]}',${m[3]})">${m[0]}</a>`); }
+  return h;
+}
+function openPhoto(eid, i) {
+  const x = DB.entries.find(e => e.id === eid), ph = x.photos.filter(p => p.endsWith('.jpg'));
+  let k = ph.indexOf(x.photos[i]);
+  const L = document.createElement('div'); L.className = 'lb';
+  const show = async () => { L.querySelector('.cn').textContent = (k + 1) + ' / ' + ph.length; const im = L.querySelector('img'); im.src = await fileURL('thumbs/' + ph[k]); try { im.src = await fileURL('photos/' + ph[k]); } catch (e) {} };
+  L.innerHTML = `<div class="tb"><button class="ib" style="color:#fff" aria-label="Закрыть"><i class="ti ti-x"></i></button><span class="cn"></span><span><button class="ib" style="color:#fff" data-d="-1"><i class="ti ti-chevron-left"></i></button><button class="ib" style="color:#fff" data-d="1"><i class="ti ti-chevron-right"></i></button></span></div><div class="img"><img alt=""></div>`;
+  L.querySelector('.tb .ib').onclick = () => L.remove();
+  L.querySelectorAll('[data-d]').forEach(b => b.onclick = () => { k = (k + +b.dataset.d + ph.length) % ph.length; show(); });
+  let sx = 0; L.querySelector('.img').addEventListener('touchstart', e => sx = e.touches[0].clientX, { passive: true });
+  L.querySelector('.img').addEventListener('touchend', e => { if (e.changedTouches.length !== 1 || visualViewport?.scale > 1.05) return; const d = e.changedTouches[0].clientX - sx; if (Math.abs(d) > 60) { k = (k + (d < 0 ? 1 : -1) + ph.length) % ph.length; show(); } });
+  $('#layer').appendChild(L); show();
+}
+async function openVideo(p) {
+  const L = document.createElement('div'); L.className = 'lb';
+  L.innerHTML = `<div class="tb"><button class="ib" style="color:#fff"><i class="ti ti-x"></i></button><span>видео</span><span></span></div><div class="img"><div class="sub">загружаю…</div></div>`;
+  L.querySelector('.ib').onclick = () => L.remove(); $('#layer').appendChild(L);
+  try { L.querySelector('.img').innerHTML = `<video src="${await fileURL('photos/' + p)}" controls playsinline style="max-width:100%;max-height:100%"></video>`; } catch (e) { L.querySelector('.img').innerHTML = '<div class="sub">Видео недоступно без связи</div>'; }
+}
+
+// ---------- редактор записи ----------
+let DRAFT = null;
+function newEntry(pre = {}) {
+  const m = machine(pre.machine);
+  DRAFT = { id: 'e' + uid(), date: today(), title: '', machine: pre.machine || '', shop: pre.shop || (m?.shops?.length === 1 ? m.shops[0] : ''), cnc: m?.cnc || '', unit: '', type: 'fault', problem: '', steps: [], params: [], note: '', photos: [], created: Date.now() };
+  go({ name: 'edit', id: DRAFT.id, isNew: true });
+}
+function vEdit(v) {
+  if (!DRAFT || DRAFT.id !== v.id) { const x = DB.entries.find(e => e.id === v.id); if (!x) return header('Нет записи', ''); DRAFT = JSON.parse(JSON.stringify(x)); }
+  const d = DRAFT, ms = [...DB.machines].sort((a, b) => a.name.localeCompare(b.name));
+  return header(v.isNew ? 'Новая запись' : 'Изменить запись', '', `<button class="ib" onclick="saveEntry()" aria-label="Сохранить" style="color:var(--or)"><i class="ti ti-check"></i></button>`)
+  + `<div class="wrap"><form class="ed" onsubmit="event.preventDefault();saveEntry()">
+  <label>Что делали (заголовок)</label><input id="f-title" value="${esc(d.title)}" placeholder="Точка смены инструмента по Z" required>
+  <label>Тип</label><div class="seg">${Object.entries(TYPES).map(([k, t]) => `<button type="button" class="${k} ${d.type === k ? 'on' : ''}" onclick="DRAFT.type='${k}';this.parentNode.querySelectorAll('button').forEach(b=>b.classList.toggle('on',b===this))">${t}</button>`).join('')}</div>
+  <label>Станок</label><select id="f-machine" onchange="edMachine(this.value)"><option value="">— общая инструкция, без станка —</option>${ms.map(m => `<option value="${m.id}" ${d.machine === m.id ? 'selected' : ''}>${esc(m.name)}${m.shops?.length ? ' · цех ' + m.shops.join(', ') : ''}</option>`).join('')}<option value="__new">+ Новый станок…</option></select>
+  <div style="display:flex;gap:8px"><div style="flex:1"><label>Цех</label><input id="f-shop" value="${esc(d.shop || '')}" list="dl-shops" inputmode="numeric" placeholder="710"></div>
+  <div style="flex:1"><label>Дата</label><input id="f-date" type="date" value="${esc(d.date)}"></div></div>
+  <label>Стойка ЧПУ</label><input id="f-cnc" value="${esc(d.cnc || '')}" list="dl-cnc" placeholder="Sinumerik 840D">
+  <label>Узел</label><input id="f-unit" value="${esc(d.unit || '')}" list="dl-unit" placeholder="Шпиндель / зажим">
+  <label>Проблема / симптом</label><textarea id="f-problem" placeholder="Ошибка 700513, нет протока СОЖ">${esc(d.problem || '')}</textarea>
+  <label>Шаги решения</label><textarea id="f-steps" style="min-height:140px" placeholder="Каждый шаг — с новой строки">${esc((d.steps || []).join('\n'))}</textarea>
+  <label>Параметры</label><textarea id="f-params" placeholder="1815 APZ = 0&#10;1241 = точка смены Z">${esc((d.params || []).map(p => p.v ? p.k + ' = ' + p.v : p.k).join('\n'))}</textarea><div class="hint">Каждый с новой строки: «параметр = значение».</div>
+  <label>Заметка / пароль / важно</label><textarea id="f-note" style="min-height:60px">${esc(d.note || '')}</textarea>
+  <label>Фото</label><div class="photos" id="f-photos">${d.photos.map((p, i) => `<div class="ph" ${p.endsWith('.jpg') ? `data-img="thumbs/${esc(p)}"` : ''}><button type="button" class="x" style="border:0;color:#fff" onclick="DRAFT.photos.splice(${i},1);render()" aria-label="Убрать фото"><i class="ti ti-x"></i></button></div>`).join('')}
+  <button type="button" class="ph" onclick="addPhotos()" style="display:grid;place-items:center;border:1px dashed var(--or);color:var(--or)"><i class="ti ti-camera-plus" style="font-size:26px"></i></button></div>
+  <datalist id="dl-shops">${shopsAll().map(s => `<option value="${s}">`).join('')}</datalist><datalist id="dl-cnc">${CNCS.map(s => `<option value="${s}">`).join('')}</datalist><datalist id="dl-unit">${UNITS.map(s => `<option value="${s}">`).join('')}</datalist>
+  <div class="actions"><button class="btn pri" type="submit"><i class="ti ti-device-floppy"></i> Сохранить</button></div>
+  ${v.isNew ? '' : `<div class="actions"><button type="button" class="btn dan" onclick="delEntry('${d.id}')"><i class="ti ti-trash"></i> Удалить запись</button></div>`}
+  </form></div>`;
+}
+function readForm() {
+  const d = DRAFT, g = id => $('#' + id)?.value.trim() ?? '';
+  d.title = g('f-title'); d.shop = g('f-shop'); d.date = g('f-date') || today(); d.cnc = g('f-cnc'); d.unit = g('f-unit'); d.problem = g('f-problem'); d.note = g('f-note');
+  d.machine = g('f-machine') === '__new' ? '' : g('f-machine');
+  d.steps = g('f-steps').split('\n').map(s => s.replace(/^\s*\d+[.)]\s*/, '').trim()).filter(Boolean);
+  d.params = g('f-params').split('\n').map(s => s.trim()).filter(Boolean).map(s => { const i = s.search(/\s[=—–-]\s|=/); return i < 0 ? { k: s, v: '' } : { k: s.slice(0, i).trim(), v: s.slice(i).replace(/^\s*[=—–-]\s*/, '').trim() }; });
+}
+async function edMachine(id) {
+  readForm();
+  if (id === '__new') {
+    const name = await ask({ title: 'Новый станок', input: 'Например: Heller MCH 450' });
+    if (!name) { $('#f-machine').value = DRAFT.machine; return; }
+    const m = { id: 'm' + uid(), name, maker: '', cnc: DRAFT.cnc, shops: DRAFT.shop ? [DRAFT.shop] : [], note: '', photo: '', updated: Date.now() };
+    DB.machines.push(m); touch(); DRAFT.machine = m.id;
+  } else {
+    DRAFT.machine = id; const m = machine(id);
+    if (m) { if (m.cnc) DRAFT.cnc = m.cnc; if (m.shops?.length === 1) DRAFT.shop = m.shops[0]; }
+  }
+  render();
+}
+function addPhotos() {
+  readForm(); const p = $('#fpick'); p.value = '';
+  p.onchange = async () => {
+    toast('Обрабатываю фото…');
+    for (const f of p.files) {
+      try {
+        const name = 'p' + uid() + '.jpg';
+        await cachePut('photos/' + name, await resize(f, 1600, .8)); await cachePut('thumbs/' + name, await resize(f, 360, .72));
+        PENDING.push('photos/' + name, 'thumbs/' + name); DRAFT.photos.push(name);
+      } catch (e) { toast('Не получилось открыть фото'); }
+    }
+    saveLocal(); render();
+  };
+  p.click();
+}
+async function resize(file, max, q) {
+  const bmp = await createImageBitmap(file, { imageOrientation: 'from-image' }).catch(() => null);
+  let img = bmp; if (!img) { img = new Image(); img.src = URL.createObjectURL(file); await img.decode(); }
+  const k = Math.min(1, max / Math.max(img.width, img.height)), c = document.createElement('canvas');
+  c.width = Math.round(img.width * k); c.height = Math.round(img.height * k); c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+  return new Promise(r => c.toBlob(r, 'image/jpeg', q));
+}
+function saveEntry() {
+  readForm(); const d = DRAFT;
+  if (!d.title) { toast('Напиши заголовок — что делали'); $('#f-title').focus(); return; }
+  if (d.machine && d.shop) { const m = machine(d.machine); if (m && !(m.shops || []).includes(d.shop)) { m.shops = [...(m.shops || []), d.shop]; m.updated = Date.now(); } }
+  d.updated = Date.now();
+  const i = DB.entries.findIndex(e => e.id === d.id); if (i < 0) DB.entries.push(d); else DB.entries[i] = d;
+  DRAFT = null; touch(); toast('Сохранено');
+  HISTORY.pop(); VIEW = { name: 'entry', id: d.id }; render(); scrollTo(0, 0);
+}
+async function delEntry(id) {
+  if (!await ask({ title: 'Удалить запись?', text: 'Её не будет ни на телефоне, ни в облаке.', ok: 'Удалить', danger: true })) return;
+  DB.entries = DB.entries.filter(e => e.id !== id); DB.deleted[id] = Date.now(); DRAFT = null; touch();
+  HISTORY.pop(); HISTORY.pop(); VIEW = HISTORY.length ? HISTORY.pop() : { name: 'home' }; render();
+}
+
+// ---------- редактор станка ----------
+function vMEdit(v) {
+  const m = machine(v.id); if (!m) return header('Нет станка', '');
+  const cover = m.photo;
+  return header('Станок', esc(m.name), `<button class="ib" onclick="saveMachine('${m.id}')" style="color:var(--or)" aria-label="Сохранить"><i class="ti ti-check"></i></button>`)
+  + `<div class="wrap"><form class="ed" onsubmit="event.preventDefault();saveMachine('${m.id}')">
+  <label>Название</label><input id="m-name" value="${esc(m.name)}">
+  <label>Производитель</label><input id="m-maker" value="${esc(m.maker || '')}">
+  <label>Стойка ЧПУ</label><input id="m-cnc" value="${esc(m.cnc || '')}" list="dl-cnc2"><datalist id="dl-cnc2">${CNCS.map(s => `<option value="${s}">`).join('')}</datalist>
+  <label>Цеха (через запятую)</label><input id="m-shops" value="${esc((m.shops || []).join(', '))}" placeholder="111, 120">
+  <label>Заметка (пароль, особенности)</label><textarea id="m-note">${esc(m.note || '')}</textarea>
+  <label>Фото станка</label><div class="photos"><button type="button" class="ph" ${cover ? `data-img="thumbs/${esc(cover)}"` : ''} onclick="machinePhoto('${m.id}')" style="display:grid;place-items:center;border:1px dashed var(--or);color:var(--or)">${cover ? '' : '<i class="ti ti-camera-plus" style="font-size:26px"></i>'}</button></div>
+  <div class="actions"><button class="btn pri" type="submit">Сохранить</button></div>
+  ${entriesOf(m.id).length ? '' : `<div class="actions"><button type="button" class="btn dan" onclick="delMachine('${m.id}')">Удалить станок</button></div>`}</form></div>`;
+}
+function saveMachine(id) {
+  const m = machine(id), g = k => $('#' + k).value.trim();
+  m.name = g('m-name') || m.name; m.maker = g('m-maker'); m.cnc = g('m-cnc'); m.note = g('m-note');
+  m.shops = g('m-shops').split(/[,;\s]+/).map(s => s.trim()).filter(Boolean);
+  touch(m); toast('Сохранено'); history.back();
+}
+function machinePhoto(id) {
+  const p = $('#fpick'); p.value = '';
+  p.onchange = async () => {
+    const f = p.files[0]; if (!f) return; const name = 'm' + uid() + '.jpg';
+    await cachePut('photos/' + name, await resize(f, 1600, .8)); await cachePut('thumbs/' + name, await resize(f, 600, .75));
+    PENDING.push('photos/' + name, 'thumbs/' + name); const m = machine(id); m.photo = name; touch(m); render();
+  };
+  p.click();
+}
+async function delMachine(id) {
+  if (!await ask({ title: 'Удалить станок?', ok: 'Удалить', danger: true })) return;
+  DB.machines = DB.machines.filter(m => m.id !== id); DB.deleted[id] = Date.now(); touch(); HISTORY.pop(); HISTORY.pop(); VIEW = { name: 'home' }; render();
+}
+
+// ---------- общие инструкции ----------
+function vGeneral() {
+  const ent = DB.entries.filter(e => !machine(e.machine) && !e.shop), groups = {};
+  ent.forEach(e => (groups[e.cnc || 'Разное'] ||= []).push(e));
+  return header('Общие инструкции', zap(ent.length)) + `<div class="wrap">${Object.entries(groups).sort().map(([g, l]) => `<h2 class="sec">${esc(g)}</h2>` + l.sort((a, b) => a.title.localeCompare(b.title)).map(x => entryRow(x)).join('')).join('')}</div>
+  <button class="fab" onclick="newEntry()"><i class="ti ti-plus"></i>Запись</button>`;
+}
+
+// ---------- настройки ----------
+function vSettings() {
+  const used = DB.schemes.length;
+  return header('Облако и данные', '<span id="sync"></span>') + `<div class="wrap">
+  <h2 class="sec">Яндекс Диск</h2>
+  ${!YANDEX_CLIENT_ID ? '<div class="note">Синхронизация ещё не настроена (нет ClientID приложения Яндекса).</div>' : yaToken
+    ? `<button class="row" onclick="sync(true)"><div class="t"><i class="ti ti-refresh"></i> Синхронизировать сейчас</div><div class="m">${SYNC.at ? 'последняя: ' + hhmm(SYNC.at) : ''}${PENDING.length ? ' · ждут отправки: ' + PENDING.length + ' файлов' : ''}</div></button>
+       <button class="row" onclick="yaOff()"><div class="t"><i class="ti ti-logout"></i> Отключить Диск на этом устройстве</div></button>`
+    : `<button class="row" onclick="location.href=yaAuthUrl(false)"><div class="t"><i class="ti ti-login"></i> Войти через Яндекс</div><div class="m">Записи, фото и схемы хранятся в «Приложения / Борт-журнал ЧПУ» на твоём Диске</div></button>
+       <button class="row" onclick="yaManual()"><div class="t"><i class="ti ti-key"></i> Вход не вернул в приложение? Вставить код</div></button>`}
+  <h2 class="sec">Хранилище телефона</h2><div class="row" id="stor"><div class="t">Считаю…</div></div>
+  <button class="row" onclick="cacheAllThumbs()"><div class="t"><i class="ti ti-photo-down"></i> Скачать все миниатюры фото</div><div class="m">чтобы картинки были видны без связи (~5 МБ)</div></button>
+  <h2 class="sec">Перенос базы</h2>
+  <button class="row" onclick="importFolder()"><div class="t"><i class="ti ti-folder-up"></i> Загрузить папку базы (с компьютера)</div><div class="m">папка bort-data: seed.json, photos, thumbs, schemes — всё уйдёт на Яндекс Диск</div></button>
+  <div class="prog" id="iprog" hidden><div></div></div><div class="sub" id="itxt"></div>
+  <button class="row" onclick="exportJson()"><div class="t"><i class="ti ti-download"></i> Сохранить копию записей (JSON)</div></button>
+  <div class="foot">Борт-журнал ЧПУ v1 · by Sega Mega<br>${DB.machines.length} станков · ${DB.entries.length} записей · ${used} схем</div></div>`;
+}
+async function storInfo() {
+  const el = $('#stor'); if (!el) return;
+  let n = 0, size = 0, sch = 0;
+  try { const c = await caches.open(FILES); for (const r of await c.keys()) { n++; if (r.url.includes('/schemes/') && r.url.endsWith('.pdf')) sch++; } } catch (e) {}
+  try { const e = await navigator.storage.estimate(); size = e.usage || 0; } catch (e) {}
+  el.innerHTML = `<div class="t"><i class="ti ti-device-mobile"></i> На телефоне: ${n} файлов, схем: ${sch}</div><div class="m">занято ≈ ${mb(size)}</div>`;
+}
+function yaOff() { yaToken = ''; try { localStorage.removeItem(LS_TOKEN); } catch (e) {} SYNC.state = 'off'; render(); toast('Отключено. Данные остались на устройстве.'); }
+async function yaManual() {
+  window.open(yaAuthUrl(true), '_blank');
+  const code = await ask({ title: 'Код от Яндекса', text: 'Войди в Яндекс в открывшемся окне, скопируй код и вставь сюда.', input: 'код', ok: 'Подключить' });
+  if (code) { yaToken = code.trim(); try { localStorage.setItem(LS_TOKEN, yaToken); } catch (e) {} render(); sync(true); }
+}
+async function cacheAllThumbs() {
+  const all = [...new Set(DB.entries.flatMap(e => e.photos || []).concat(DB.machines.map(m => m.photo)).filter(p => p && p.endsWith('.jpg')))];
+  let i = 0, bad = 0;
+  for (const p of all) { try { await getFile('thumbs/' + p); } catch (e) { bad++; } i++; if (i % 10 === 0) toast(`Миниатюры: ${i} / ${all.length}`); }
+  toast(bad ? `Готово, не скачалось: ${bad}` : 'Все миниатюры на телефоне'); storInfo();
+}
+function exportJson() {
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify({ app: 'bortjournal', v: 1, ...DB }, null, 1)], { type: 'application/json' }));
+  a.download = 'bortjournal-' + today() + '.json'; a.click();
+}
+function importFolder() {
+  if (!yaToken) { toast('Сначала войди в Яндекс Диск'); return; }
+  const p = $('#dpick'); p.value = '';
+  p.onchange = async () => {
+    const files = [...p.files], seedF = files.find(f => f.name === 'seed.json');
+    if (!seedF) { toast('В папке нет seed.json — выбери папку bort-data'); return; }
+    const seed = JSON.parse(await seedF.text());
+    const up = files.filter(f => /\/(photos|thumbs|schemes)\//.test(f.webkitRelativePath));
+    if (!await ask({ title: 'Загрузить базу?', text: `${seed.entries.length} записей, ${seed.machines.length} станков, ${seed.schemes.length} схем.\nФайлов к отправке: ${up.length} (${mb(up.reduce((s, f) => s + f.size, 0))}).\nУже существующие на Диске файлы пропущу.`, ok: 'Загрузить' })) return;
+    const now = Date.now();
+    for (const k of ['machines', 'entries', 'schemes']) for (const x of seed[k] || []) { x.updated ||= now; if (!DB[k].some(y => y.id === x.id)) DB[k].push(x); }
+    saveLocal();
+    const bar = $('#iprog'), txt = $('#itxt'); bar.hidden = false;
+    let have = new Set();
+    for (const dir of ['photos', 'thumbs', 'schemes']) {
+      try { const r = await yaApi('/resources?limit=5000&fields=_embedded.items.name&path=' + encodeURIComponent('app:/' + dir)); if (r.ok) (await r.json())._embedded.items.forEach(i => have.add(dir + '/' + i.name)); } catch (e) {}
+    }
+    let i = 0, done = 0, total = up.reduce((s, f) => s + f.size, 0);
+    for (const f of up) {
+      const rel = f.webkitRelativePath.split('/').slice(-2).join('/');
+      i++; txt.textContent = `${i} / ${up.length}: ${rel}`;
+      if (!have.has(rel)) { for (let t = 0; t < 3; t++) { try { await yaPut('app:/' + rel, f); break; } catch (e) { if (e === 'auth' || t === 2) { txt.textContent = 'Ошибка на ' + rel + '. Запусти загрузку ещё раз — продолжу с этого места.'; return; } } } }
+      done += f.size; bar.firstChild.style.width = (done / total * 100) + '%';
+    }
+    txt.textContent = 'Готово! База на Яндекс Диске.'; await sync(true); render();
+  };
+  p.click();
+}
+
+// ---------- просмотр схем (PDF.js) ----------
+let pdfjsP = null;
+function loadPdfJs() {
+  return pdfjsP ||= new Promise((res, rej) => {
+    const s = document.createElement('script'); s.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+    s.onload = () => { pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'; res(pdfjsLib); };
+    s.onerror = () => { pdfjsP = null; rej('pdfjs'); }; document.head.appendChild(s);
+  });
+}
+async function openScheme(id, q = '', page = 0) {
+  const s = DB.schemes.find(x => x.id === id); if (!s) return;
+  const L = document.createElement('div'); L.className = 'pv';
+  L.innerHTML = `<div class="tb"><button class="ib" data-a="x" aria-label="Закрыть"><i class="ti ti-x"></i></button><div class="ttl">${esc(s.title)}<div class="sub pinfo">загружаю…</div></div>
+    <button class="ib" data-a="out" aria-label="Мельче"><i class="ti ti-zoom-out"></i></button><button class="ib" data-a="in" aria-label="Крупнее"><i class="ti ti-zoom-in"></i></button></div>
+    <form class="sb"><input type="search" placeholder="Компонент: K12, SF1, I35.6 или лист: 63" value="${esc(q)}" enterkeyhint="search"><button type="button" class="ib" data-a="prev" aria-label="Предыдущее"><i class="ti ti-chevron-up"></i></button><span class="cnt"></span><button type="button" class="ib" data-a="next" aria-label="Следующее"><i class="ti ti-chevron-down"></i></button></form>
+    <div class="prog" style="margin:0;border-radius:0" hidden><div></div></div><div class="pages"></div>`;
+  $('#layer').appendChild(L);
+  const info = L.querySelector('.pinfo'), pagesEl = L.querySelector('.pages'), cnt = L.querySelector('.cnt'), inp = L.querySelector('input'), prog = L.querySelector('.prog');
+  L.querySelector('[data-a=x]').onclick = () => { L.remove(); };
+  let pdf;
+  try {
+    const lib = await loadPdfJs();
+    const local = await cacheHas('schemes/' + s.file);
+    if (!local) prog.hidden = false;
+    const blob = await getFile('schemes/' + s.file, { keep: false, progress: f => { prog.firstChild.style.width = f * 100 + '%'; info.textContent = 'качаю из облака ' + Math.round(f * 100) + '%'; } });
+    prog.hidden = true;
+    pdf = await lib.getDocument({ data: await blob.arrayBuffer() }).promise;
+  } catch (e) { info.textContent = e === 'pdfjs' ? 'Нет связи: просмотрщик ещё не загружен' : (!yaToken && !LOCALDATA ? 'Подключи Яндекс Диск' : 'Схема недоступна без связи — скачай её на телефон'); return; }
+  const N = pdf.numPages; info.textContent = N + ' листов';
+  const first = await pdf.getPage(1), vp1 = first.getViewport({ scale: 1 }), ratio = vp1.height / vp1.width;
+  let zoom = 1, hits = [], hi = -1;
+  const W = () => Math.round((pagesEl.clientWidth - 16) * zoom);
+  const nodes = [];
+  for (let i = 1; i <= N; i++) { const d = document.createElement('div'); d.className = 'pg'; d.dataset.p = i; d.innerHTML = `<span class="no">${i}</span>`; pagesEl.appendChild(d); nodes.push(d); }
+  const size = () => nodes.forEach(d => { d.style.width = W() + 'px'; d.style.height = Math.round(W() * ratio) + 'px'; });
+  size();
+  const rendered = new Map(); let busy = Promise.resolve();
+  async function draw(d) {
+    const i = +d.dataset.p, key = i + '@' + zoom; if (rendered.get(i) === key) return; rendered.set(i, key);
+    const page = await pdf.getPage(i), w = W(), dpr = Math.min(devicePixelRatio || 1, zoom > 2 ? 2 : 3);
+    const vp = page.getViewport({ scale: w / page.getViewport({ scale: 1 }).width * dpr });
+    const c = document.createElement('canvas'); c.width = vp.width; c.height = vp.height;
+    await page.render({ canvasContext: c.getContext('2d'), viewport: vp }).promise;
+    d.querySelector('canvas')?.remove(); d.prepend(c); markHits(d);
+  }
+  const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) busy = busy.then(() => draw(e.target)).catch(() => {}); }), { root: pagesEl, rootMargin: '600px 0px' });
+  nodes.forEach(d => io.observe(d));
+  const textCache = new Map();
+  async function pageText(i) {
+    if (!textCache.has(i)) textCache.set(i, pdf.getPage(i).then(p => p.getTextContent().then(tc => ({ p, items: tc.items }))));
+    return textCache.get(i);
+  }
+  function markHits(d) {
+    d.querySelectorAll('.hlb').forEach(x => x.remove());
+    const i = +d.dataset.p;
+    hits.filter(h => h.page === i).forEach(h => {
+      const b = document.createElement('div'); b.className = 'hlb'; const k = W() / h.pw;
+      Object.assign(b.style, { left: (h.x * k - 3) + 'px', top: (h.y * k - 3) + 'px', width: (h.w * k + 6) + 'px', height: (h.h * k + 6) + 'px' });
+      if (hits[hi] === h) b.style.background = 'rgba(255,138,31,.75)';
+      d.appendChild(b);
+    });
+  }
+  async function find(q) {
+    hits = []; hi = -1; nodes.forEach(markHits);
+    q = q.trim(); if (!q) { cnt.textContent = ''; return; }
+    if (/^\d+$/.test(q) && +q <= N && !/^\d{3,}$/.test(q) || /^(лист|стр)\s*\d+$/i.test(q)) { const n = +q.replace(/\D/g, ''); nodes[n - 1].scrollIntoView(); cnt.textContent = 'лист ' + n; return; }
+    cnt.textContent = 'ищу…';
+    const Q = q.toUpperCase().replace(/^[-+=]/, ''), idx = await loadIdx(s);
+    let pages = idx[Q] ? idx[Q] : null;
+    const list = pages || Array.from({ length: N }, (_, i) => i + 1);
+    const norm = t => t.toUpperCase().replace(/\s+/g, '');
+    for (const i of list) {
+      const { p, items } = await pageText(i), vp = p.getViewport({ scale: 1 });
+      for (const it of items) {
+        const t = norm(it.str); if (!t.includes(norm(Q))) continue;
+        const [a, b, c, dd, e, f] = pdfjsLib.Util.transform(vp.transform, it.transform);
+        const fh = Math.hypot(c, dd) || 8, w = it.width, start = t.indexOf(norm(Q)) / Math.max(1, t.length);
+        hits.push({ page: i, pw: vp.width, x: e + w * start, y: f - fh, w: Math.max(8, w * Math.min(1, norm(Q).length / Math.max(1, t.length))), h: fh });
+      }
+      if (inp.value.trim() !== q) return;
+      if (!pages && i % 20 === 0) cnt.textContent = 'ищу… ' + i + '/' + N;
+    }
+    cnt.textContent = hits.length ? '1 / ' + hits.length : 'нет';
+    if (hits.length) { hi = 0; jump(); }
+    nodes.forEach(markHits);
+  }
+  function jump() {
+    const h = hits[hi]; if (!h) return; cnt.textContent = (hi + 1) + ' / ' + hits.length;
+    const d = nodes[h.page - 1], k = W() / h.pw;
+    pagesEl.scrollTop = d.offsetTop - pagesEl.offsetTop + h.y * k - pagesEl.clientHeight / 3;
+    pagesEl.scrollLeft = Math.max(0, d.offsetLeft + h.x * k - pagesEl.clientWidth / 2);
+    nodes.forEach(markHits);
+  }
+  L.querySelector('form').onsubmit = e => { e.preventDefault(); inp.blur(); find(inp.value); };
+  L.querySelector('[data-a=next]').onclick = () => { if (hits.length) { hi = (hi + 1) % hits.length; jump(); } };
+  L.querySelector('[data-a=prev]').onclick = () => { if (hits.length) { hi = (hi - 1 + hits.length) % hits.length; jump(); } };
+  const setZoom = z => {
+    const cur = nodes.find(d => d.offsetTop + d.offsetHeight > pagesEl.scrollTop) || nodes[0], rel = (pagesEl.scrollTop - cur.offsetTop) / cur.offsetHeight;
+    zoom = Math.max(1, Math.min(6, z)); size(); rendered.clear(); nodes.forEach(markHits);
+    pagesEl.scrollTop = cur.offsetTop + rel * cur.offsetHeight; io.disconnect(); nodes.forEach(d => io.observe(d));
+  };
+  L.querySelector('[data-a=in]').onclick = () => setZoom(zoom * 1.6);
+  L.querySelector('[data-a=out]').onclick = () => setZoom(zoom / 1.6);
+  if (page) nodes[page - 1]?.scrollIntoView();
+  if (q) find(q);
+}
+
+// ---------- старт ----------
+async function boot() {
+  loadLocal(); readOAuthReturn();
+  if (!DB.entries.length) {
+    try { const r = await fetch('data/seed.json', { cache: 'no-store' }); if (r.ok) { const s = await r.json(); DB = { ...s, deleted: {} }; LOCALDATA = true; saveLocal(); } } catch (e) {}
+  } else { try { LOCALDATA = (await fetch('data/seed.json', { method: 'HEAD' })).ok; } catch (e) {} }
+  history.replaceState({ d: 0 }, '');
+  render();
+  if (yaToken) sync();
+  if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
+  try { navigator.storage?.persist?.(); } catch (e) {}
+}
+const _render = render;
+render = function () { _render(); if (VIEW.name === 'machine' && VIEW.tab === 'schemes') schemeStates(); if (VIEW.name === 'settings') storInfo(); };
+addEventListener('online', () => syncSoon(500));
+document.addEventListener('visibilitychange', () => { if (!document.hidden) syncSoon(800); });
+boot();
+</script>
+</body>
+</html>
