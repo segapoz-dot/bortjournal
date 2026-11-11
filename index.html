@@ -120,6 +120,7 @@ form.ed input:focus,form.ed select:focus,form.ed textarea:focus{border-color:var
 const YANDEX_CLIENT_ID = 'c898a0b8453a4af3a0e7a488aec34ff6';
 
 const LS = 'bort-v1', LS_TOKEN = 'bort-ya', YA_DATA = 'app:/bortjournal.json', FILES = 'bort-files';
+const LS_SHARE = 'bort-share', LS_NAME = 'bort-name', LS_BACKUP = 'bort-backup';
 const TYPES = { fault: 'Неисправность', setup: 'Настройка', guide: 'Инструкция' };
 const KINDS = { electro: 'Электросхемы', hydro: 'Гидро / пневмо' };
 const CNCS = ['Sinumerik 840D', 'FANUC', 'Heidenhain', 'HURCO WinMax', 'Okuma OSP', 'Mitsubishi'];
@@ -142,6 +143,7 @@ const cncShort = c => String(c || '').replace('Sinumerik 840D', '840D');
 // ---------- состояние ----------
 let DB = { machines: [], entries: [], schemes: [], deleted: {} };
 let UI = { cnc: '' }, PENDING = [], yaToken = '', LOCALDATA = false;
+let shareFrom = '', myName = '', pendingInvite = null; // shareFrom — чья база, если подключён по приглашению
 const SYNC = { state: 'off', at: 0 };
 let VIEW = { name: 'home' }, HISTORY = [], SEARCH = '';
 
@@ -150,6 +152,8 @@ function loadLocal() {
     const s = JSON.parse(localStorage.getItem(LS));
     if (s) { DB = s.db || DB; UI = { ...UI, ...(s.ui || {}) }; PENDING = s.pending || []; }
     yaToken = localStorage.getItem(LS_TOKEN) || '';
+    shareFrom = localStorage.getItem(LS_SHARE) || '';
+    myName = localStorage.getItem(LS_NAME) || '';
   } catch (e) {}
   DB.deleted ||= {}; DB.schemes ||= [];
 }
@@ -264,12 +268,20 @@ async function sync(manual) {
     const m = merge(remote || {});
     const changed = sig(m) !== before;
     DB = m; saveLocal();
-    if (!remote || sig(remote) !== sig(DB)) await yaPut(YA_DATA, new Blob([JSON.stringify({ app: 'bortjournal', v: 1, ...DB, savedAt: Date.now() })], { type: 'application/json' }));
+    const json = () => new Blob([JSON.stringify({ app: 'bortjournal', v: 1, ...DB, savedAt: Date.now() })], { type: 'application/json' });
+    if (!remote || sig(remote) !== sig(DB)) await yaPut(YA_DATA, json());
+    // раз в день — копия базы в папку backup на Диске (на случай, если кто-то что-то удалит)
+    let bk = ''; try { bk = localStorage.getItem(LS_BACKUP) || ''; } catch (e) {}
+    if (bk !== today() && DB.entries.length) { try { await yaPut('app:/backup/bortjournal-' + today() + '.json', json()); localStorage.setItem(LS_BACKUP, today()); } catch (e) { if (e === 'auth') throw e; } }
     SYNC.state = 'ok'; SYNC.at = Date.now();
     if (changed) render();
     if (manual) toast('Синхронизировано с Яндекс Диском');
   } catch (e) {
-    if (e === 'auth') { yaToken = ''; try { localStorage.removeItem(LS_TOKEN); } catch (x) {} SYNC.state = 'auth'; toast('Вход в Яндекс истёк. Подключи Диск заново — данные на телефоне целы.'); }
+    if (e === 'auth') {
+      const was = shareFrom; yaToken = ''; shareFrom = '';
+      try { localStorage.removeItem(LS_TOKEN); localStorage.removeItem(LS_SHARE); } catch (x) {} SYNC.state = 'auth';
+      toast(was ? `Приглашение от ${was} больше не действует. Попроси новую ссылку — данные на телефоне целы.` : 'Вход в Яндекс истёк. Подключи Диск заново — данные на телефоне целы.');
+    }
     else { SYNC.state = 'offline'; if (manual) toast('Нет связи с Яндекс Диском. Всё сохранено на устройстве.'); }
   }
   syncing = false; setStatus();
@@ -290,7 +302,8 @@ function setStatus() {
 }
 function readOAuthReturn() {
   const h = new URLSearchParams(location.hash.slice(1));
-  if (h.get('access_token')) { yaToken = h.get('access_token'); try { localStorage.setItem(LS_TOKEN, yaToken); } catch (e) {} history.replaceState(null, '', location.pathname); toast('Яндекс Диск подключён'); }
+  if (h.get('invite')) { pendingInvite = parseInvite(location.hash); history.replaceState(null, '', location.pathname); }
+  else if (h.get('access_token')) { yaToken = h.get('access_token'); try { localStorage.setItem(LS_TOKEN, yaToken); } catch (e) {} history.replaceState(null, '', location.pathname); toast('Яндекс Диск подключён'); }
   else if (h.get('error')) { history.replaceState(null, '', location.pathname); toast('Вход в Яндекс не выполнен'); }
 }
 
@@ -468,6 +481,7 @@ function vEntry(v) {
   ${x.steps?.length ? `<div class="lbl">Шаги</div><ol class="steps">${x.steps.map(s => `<li>${linkify(s)}</li>`).join('')}</ol>` : ''}
   ${x.params?.length ? `<div class="lbl">Параметры</div><div class="params">${x.params.map(p => `<div><b>${esc(p.k)}</b><span>${esc(p.v)}</span></div>`).join('')}</div>` : ''}
   ${x.note ? `<div class="note"><i class="ti ti-bulb"></i> ${linkify(x.note)}</div>` : ''}
+  ${x.by || x.editedBy ? `<div class="sub" style="margin-top:10px"><i class="ti ti-user"></i> ${[x.by ? 'добавил: ' + esc(x.by) : '', x.editedBy ? 'правил: ' + esc(x.editedBy) : ''].filter(Boolean).join(' · ')}</div>` : ''}
   <div class="actions"><button class="btn" onclick="go({name:'edit',id:'${x.id}'})"><i class="ti ti-edit"></i> Изменить</button></div></div>`;
 }
 function linkify(s) {
@@ -572,7 +586,9 @@ function saveEntry() {
   if (!d.title) { toast('Напиши заголовок — что делали'); $('#f-title').focus(); return; }
   if (d.machine && d.shop) { const m = machine(d.machine); if (m && !(m.shops || []).includes(d.shop)) { m.shops = [...(m.shops || []), d.shop]; m.updated = Date.now(); } }
   d.updated = Date.now();
-  const i = DB.entries.findIndex(e => e.id === d.id); if (i < 0) DB.entries.push(d); else DB.entries[i] = d;
+  const i = DB.entries.findIndex(e => e.id === d.id);
+  if (myName) { if (i < 0) d.by = myName; else if (d.by !== myName) d.editedBy = myName; }
+  if (i < 0) DB.entries.push(d); else DB.entries[i] = d;
   DRAFT = null; touch(); toast('Сохранено');
   HISTORY.pop(); VIEW = { name: 'entry', id: d.id }; render(); scrollTo(0, 0);
 }
@@ -631,17 +647,21 @@ function vSettings() {
   return header('Облако и данные', '<span id="sync"></span>') + `<div class="wrap">
   <h2 class="sec">Яндекс Диск</h2>
   ${!YANDEX_CLIENT_ID ? '<div class="note">Синхронизация ещё не настроена (нет ClientID приложения Яндекса).</div>' : yaToken
-    ? `<button class="row" onclick="sync(true)"><div class="t"><i class="ti ti-refresh"></i> Синхронизировать сейчас</div><div class="m">${SYNC.at ? 'последняя: ' + hhmm(SYNC.at) : ''}${PENDING.length ? ' · ждут отправки: ' + PENDING.length + ' файлов' : ''}</div></button>
-       <button class="row" onclick="yaOff()"><div class="t"><i class="ti ti-logout"></i> Отключить Диск на этом устройстве</div></button>`
+    ? `${shareFrom ? `<div class="note"><i class="ti ti-users"></i> Общая база, хозяин — ${esc(shareFrom)}. Всё, что ты добавишь, сразу попадёт в эту базу.</div>` : ''}
+       <button class="row" onclick="sync(true)"><div class="t"><i class="ti ti-refresh"></i> Синхронизировать сейчас</div><div class="m">${SYNC.at ? 'последняя: ' + hhmm(SYNC.at) : ''}${PENDING.length ? ' · ждут отправки: ' + PENDING.length + ' файлов' : ''}</div></button>
+       ${shareFrom ? '' : `<button class="row" onclick="invite()"><div class="t"><i class="ti ti-user-plus"></i> Пригласить коллегу</div><div class="m">ссылка на общую базу: он видит всё и может добавлять свои записи</div></button>`}
+       <button class="row" onclick="yaOff()"><div class="t"><i class="ti ti-logout"></i> ${shareFrom ? 'Отключиться от общей базы' : 'Отключить Диск на этом устройстве'}</div></button>`
     : `<button class="row" onclick="location.href=yaAuthUrl(false)"><div class="t"><i class="ti ti-login"></i> Войти через Яндекс</div><div class="m">Записи, фото и схемы хранятся в «Приложения / Борт-журнал ЧПУ» на твоём Диске</div></button>
+       <button class="row" onclick="pasteInvite()"><div class="t"><i class="ti ti-users"></i> Есть приглашение от коллеги? Вставить ссылку</div><div class="m">подключиться к его общей базе</div></button>
        <button class="row" onclick="yaManual()"><div class="t"><i class="ti ti-key"></i> Вход не вернул в приложение? Вставить код</div></button>`}
+  <button class="row" onclick="setName()"><div class="t"><i class="ti ti-user"></i> Твоё имя: ${myName ? esc(myName) : 'не указано'}</div><div class="m">видно в записях, которые ты добавишь или поправишь</div></button>
   <h2 class="sec">Хранилище телефона</h2><div class="row" id="stor"><div class="t">Считаю…</div></div>
   <button class="row" onclick="cacheAllThumbs()"><div class="t"><i class="ti ti-photo-down"></i> Скачать все миниатюры фото</div><div class="m">чтобы картинки были видны без связи (~5 МБ)</div></button>
   <h2 class="sec">Перенос базы</h2>
   <button class="row" onclick="importFolder()"><div class="t"><i class="ti ti-folder-up"></i> Загрузить папку базы (с компьютера)</div><div class="m">папка bort-data: seed.json, photos, thumbs, schemes — всё уйдёт на Яндекс Диск</div></button>
   <div class="prog" id="iprog" hidden><div></div></div><div class="sub" id="itxt"></div>
   <button class="row" onclick="exportJson()"><div class="t"><i class="ti ti-download"></i> Сохранить копию записей (JSON)</div></button>
-  <div class="foot">Борт-журнал ЧПУ v1 · by Sega Mega<br>${DB.machines.length} станков · ${DB.entries.length} записей · ${used} схем</div></div>`;
+  <div class="foot">Борт-журнал ЧПУ v1.1 · by Sega Mega<br>${DB.machines.length} станков · ${DB.entries.length} записей · ${used} схем</div></div>`;
 }
 async function storInfo() {
   const el = $('#stor'); if (!el) return;
@@ -650,7 +670,54 @@ async function storInfo() {
   try { const e = await navigator.storage.estimate(); size = e.usage || 0; } catch (e) {}
   el.innerHTML = `<div class="t"><i class="ti ti-device-mobile"></i> На телефоне: ${n} файлов, схем: ${sch}</div><div class="m">занято ≈ ${mb(size)}</div>`;
 }
-function yaOff() { yaToken = ''; try { localStorage.removeItem(LS_TOKEN); } catch (e) {} SYNC.state = 'off'; render(); toast('Отключено. Данные остались на устройстве.'); }
+function yaOff() { yaToken = ''; shareFrom = ''; try { localStorage.removeItem(LS_TOKEN); localStorage.removeItem(LS_SHARE); } catch (e) {} SYNC.state = 'off'; render(); toast('Отключено. Данные остались на устройстве.'); }
+
+// ---------- общая база: приглашение коллеги ----------
+// В ссылке — ключ доступа к папке «Приложения / Борт-журнал ЧПУ» на Диске владельца (и только к ней).
+// Ключ стоит после #, поэтому он не уходит на сервер GitHub, а остаётся в телефоне.
+function parseInvite(s) {
+  const m = String(s || '').match(/invite=([^&#\s]+)/); if (!m) return null;
+  const f = String(s).match(/from=([^&#\s]+)/);
+  try { return { token: decodeURIComponent(m[1]), from: f ? decodeURIComponent(f[1]) : '' }; } catch (e) { return null; }
+}
+async function setName(silent) {
+  const n = await ask({ title: 'Как тебя подписывать?', text: 'Имя будет видно в записях, которые ты добавишь или поправишь.', input: 'например, Серёга', value: myName, ok: 'Сохранить' });
+  if (n) { myName = n; try { localStorage.setItem(LS_NAME, n); } catch (e) {} if (!silent) render(); }
+  return myName;
+}
+async function invite() {
+  if (!yaToken || shareFrom) return;
+  if (!myName && !await setName(true)) return;
+  const ok = await ask({ title: 'Пригласить коллегу', ok: 'Отправить ссылку',
+    text: 'По ссылке коллега увидит всю базу Борт-журнала — записи, пароли стоек, фото, схемы — и сможет добавлять и править записи. К остальному твоему Яндекс Диску доступа у него не будет. Отправляй только тому, кому доверяешь.' });
+  if (!ok) return;
+  const link = yaRedirect() + '#invite=' + encodeURIComponent(yaToken) + '&from=' + encodeURIComponent(myName);
+  if (navigator.share) {
+    try { await navigator.share({ title: 'Борт-журнал ЧПУ', text: myName + ' приглашает в общий Борт-журнал ЧПУ:', url: link }); return; }
+    catch (e) { if (e.name === 'AbortError') return; }
+  }
+  try { await navigator.clipboard.writeText(link); toast('Ссылка скопирована — вставь её в сообщение коллеге'); }
+  catch (e) { await ask({ title: 'Скопируй ссылку и отправь коллеге', input: '', value: link, ok: 'Готово' }); }
+}
+async function pasteInvite() {
+  const s = await ask({ title: 'Ссылка-приглашение', text: 'Вставь ссылку, которую прислал коллега.', input: 'https://…#invite=…', ok: 'Дальше' });
+  if (!s) return;
+  const inv = parseInvite(s); if (!inv) { toast('Это не похоже на приглашение — в ссылке нет «invite»'); return; }
+  joinInvite(inv);
+}
+async function joinInvite(inv) {
+  if (!inv) return;
+  if (inv.token === yaToken) { toast(shareFrom ? 'Ты уже подключён к этой базе' : 'Это твоя же ссылка-приглашение'); return; }
+  const who = inv.from || 'Коллега';
+  if (!await ask({ title: 'Подключиться к общей базе?', ok: 'Подключиться',
+    text: `Приглашение от: ${who}. Ты увидишь все записи, фото и схемы этой базы, а то, что добавишь сам, попадёт туда же.` + (yaToken ? ' Твой Яндекс Диск на этом устройстве отключится.' : '') })) return;
+  yaToken = inv.token; shareFrom = who; SYNC.state = 'off';
+  try { localStorage.setItem(LS_TOKEN, yaToken); localStorage.setItem(LS_SHARE, shareFrom); } catch (e) {}
+  render();
+  if (!myName) await setName(true);
+  await sync(true);
+  if (SYNC.state === 'ok') toast(`Готово, общая база подключена: ${zap(DB.entries.length)}`);
+}
 async function yaManual() {
   window.open(yaAuthUrl(true), '_blank');
   const code = await ask({ title: 'Код от Яндекса', text: 'Войди в Яндекс в открывшемся окне, скопируй код и вставь сюда.', input: 'код', ok: 'Подключить' });
@@ -810,7 +877,7 @@ async function boot() {
   } else { try { LOCALDATA = (await fetch('data/seed.json', { method: 'HEAD' })).ok; } catch (e) {} }
   history.replaceState({ d: 0 }, '');
   render();
-  if (yaToken) sync();
+  if (pendingInvite) joinInvite(pendingInvite); else if (yaToken) sync();
   if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
   try { navigator.storage?.persist?.(); } catch (e) {}
 }
