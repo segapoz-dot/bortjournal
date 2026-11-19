@@ -1,0 +1,388 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#f5f8fb">
+<title>Голова TUPC</title>
+<meta name="theme-color" content="#15171a">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="icon" href="../icon-192.png">
+<link rel="apple-touch-icon" href="../apple-touch-icon.png">
+<style>
+  :root {
+    --bg: #16191d; --panel: #1f2328; --card: #262b31; --line: #343a42;
+    --text: #e8ebee; --muted: #9aa3ad; --accent: #ff8a1f; --accent2: #ffb35c;
+    --ok: #46c46e; --bad: #ff5b4f; --a: #52c7ff; --b: #ff5ad1;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
+    font: 15px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  .app { display: grid; grid-template-columns: 1fr 390px; height: 100vh; height: calc(100dvh - 56px); }
+  .view { position: relative; min-height: 0; overflow: hidden; }
+  .view canvas { display: block; touch-action: none; }
+  .hud { position: absolute; left: 12px; top: 10px; pointer-events: none;
+    background: rgba(18,21,25,.72); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px;
+    font-variant-numeric: tabular-nums; }
+  .hud .big { font-size: 20px; font-weight: 700; }
+  .hud .ca { color: var(--a); } .hud .cb { color: var(--b); }
+  .hud .small { color: var(--muted); font-size: 13px; }
+  .views { position: absolute; left: 12px; bottom: 12px; display: flex; gap: 6px; flex-wrap: wrap; }
+  .views button { background: rgba(31,35,40,.9); }
+  .hint3d { position: absolute; right: 12px; top: 12px; max-width: 210px; text-align: right; color: var(--muted); font-size: 12px; pointer-events: none;
+    background: rgba(18,21,25,.6); padding: 4px 8px; border-radius: 6px; }
+
+  .panel { background: var(--panel); border-left: 1px solid var(--line); overflow-y: auto; padding: 14px 14px 30px; }
+  h1 { font-size: 17px; margin: 0 0 2px; }
+  .sub { color: var(--muted); font-size: 12.5px; margin-bottom: 12px; }
+  button { font: inherit; color: var(--text); background: var(--card); border: 1px solid var(--line);
+    border-radius: 8px; padding: 7px 11px; cursor: pointer; }
+  button:hover { border-color: #4a525c; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #1a1205; font-weight: 700; }
+  .tabs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; background: var(--bg); padding: 4px; border-radius: 10px; margin-bottom: 12px; }
+  .tabs button { border: 0; background: transparent; padding: 8px 4px; }
+  .tabs button.on { background: var(--card); color: var(--accent2); font-weight: 700; }
+  .tab { display: none; } .tab.on { display: block; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 12px; margin-bottom: 12px; }
+  .row { display: grid; grid-template-columns: 26px 1fr 96px; gap: 8px; align-items: center; margin: 8px 0; }
+  .row b { font-size: 17px; }
+  input[type=number], input[type=text] { width: 100%; font: inherit; color: var(--text); background: var(--bg);
+    border: 1px solid var(--line); border-radius: 7px; padding: 6px 8px; font-variant-numeric: tabular-nums; }
+  input[type=range] { width: 100%; accent-color: var(--accent); }
+  .g3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .g3 label, .lbl { display: block; color: var(--muted); font-size: 12.5px; margin-bottom: 3px; }
+  .presets { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 10px; }
+  .presets button { font-size: 13px; padding: 7px 4px; }
+  .note { color: var(--muted); font-size: 12.5px; margin: 8px 0 0; }
+  .err { color: var(--bad); font-weight: 600; margin-top: 8px; }
+  .sols { display: grid; gap: 6px; margin-top: 10px; }
+  .sols button { text-align: left; font-variant-numeric: tabular-nums; }
+  .sols button.on { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+  .res .ab { display: flex; gap: 18px; font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .res .ab .a { color: var(--a); } .res .ab .b { color: var(--b); }
+  .res .vec { font-variant-numeric: tabular-nums; margin-top: 4px; }
+  .res .desc { color: var(--muted); font-size: 13px; margin-top: 2px; }
+  .code { display: grid; grid-template-columns: 1fr auto; gap: 6px; align-items: center; margin-top: 8px; }
+  .code code { font: 12.5px/1.3 ui-monospace, Menlo, Consolas, monospace; background: var(--bg); border: 1px solid var(--line);
+    border-radius: 6px; padding: 6px 8px; overflow-x: auto; white-space: nowrap; }
+  .code button { padding: 5px 9px; font-size: 12.5px; }
+  details summary { cursor: pointer; font-weight: 700; }
+  .out { font-variant-numeric: tabular-nums; background: var(--bg); border-radius: 7px; padding: 7px 9px; margin-top: 6px; font-size: 14px; }
+  .chk { display: flex; gap: 8px; align-items: center; margin: 6px 0 12px; color: var(--muted); }
+  .warn { background: #3a2a12; border: 1px solid #6b4a17; color: #ffd59a; border-radius: 8px; padding: 8px 10px; font-size: 12.5px; }
+
+  .prog-bar { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+  .prog-bar button { padding: 7px 10px; }
+  textarea { width: 100%; min-height: 180px; font: 12.5px/1.35 ui-monospace, Menlo, Consolas, monospace; color: var(--text);
+    background: var(--bg); border: 1px solid var(--line); border-radius: 7px; padding: 8px; resize: vertical; }
+  select { font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: 7px; padding: 6px 8px; max-width: 100%; }
+  .listing { max-height: 260px; overflow: auto; background: var(--bg); border: 1px solid var(--line); border-radius: 7px;
+    font: 12.5px/1.45 ui-monospace, Menlo, Consolas, monospace; margin-top: 8px; }
+  .listing div { padding: 0 8px; white-space: pre; cursor: pointer; }
+  .listing div.cm { color: #6f7a86; }
+  .listing div.warn { box-shadow: inset 3px 0 0 #e0a52b; }
+  .listing div.error { box-shadow: inset 3px 0 0 var(--bad); }
+  .listing div.cur { background: #3a2a12; color: var(--accent2); }
+  .msgs { font-size: 12.5px; margin-top: 8px; max-height: 140px; overflow: auto; }
+  .msgs div { padding: 2px 0; color: var(--muted); }
+  .msgs div.warn { color: #e8b75a; } .msgs div.error { color: var(--bad); }
+  .now { font: 13px/1.4 ui-monospace, Menlo, Consolas, monospace; background: var(--bg); border-radius: 7px; padding: 7px 9px; margin-top: 8px; }
+  .hud .line { color: var(--accent2); font: 13px ui-monospace, Menlo, Consolas, monospace; margin-top: 2px; }
+
+  @media (max-width: 820px) {
+    .app { grid-template-columns: 1fr; grid-template-rows: 52vh 1fr; grid-template-rows: 52dvh 1fr; }
+    .panel { border-left: 0; border-top: 1px solid var(--line); padding: 12px 12px 40px; }
+    .hint3d { display: none; }
+    .hud .big { font-size: 17px; }
+  }
+
+  /* ===== Оформление «как Борт-журнал» (тёмное, оранжевый акцент) ===== */
+:root {
+  color-scheme: dark;
+  --panel: #1f2226; --card: #262a2f; --bg: #15171a; --line: #2e3238;
+  --text: #e6e3dc; --muted: #8d9096; --accent: #ff8a1f; --accent2: #ffb366;
+  --ok: #3ecf6a; --bad: #ff5a5f; --a: #4ea8de; --b: #ff6fb8;
+}
+html, body { font-size: 14px; }
+.app {
+  grid-template-areas: "header header" "view panel" "tabs tabs";
+  grid-template-columns: minmax(0, 1fr) 390px;
+  grid-template-rows: 46px minmax(0, 1fr) 54px;
+}
+.cnc-header {
+  grid-area: header; display: flex; align-items: center; gap: 16px;
+  padding: 0 14px; background: #1a1d21; border-top: 3px solid #ff8a1f;
+  border-bottom: 1px solid #2e3238; min-width: 0;
+}
+.cnc-header h1 { color: #ffb366; font-size: 17px; margin: 0; white-space: nowrap; }
+.cnc-header .sub { color: #8d9096; font-size: 12px; margin: 0; }
+.view { grid-area: view; }
+.panel { grid-area: panel; min-width: 0; min-height: 0; padding: 12px; border-color: #2e3238; }
+button, .card, .tabs, .tabs button, textarea, select, .listing,
+input[type=number], input[type=text], .out, .now, .warn, .code code, .sols button {
+  border-radius: 0;
+}
+button {
+  background: linear-gradient(#262a2f, #1f2226); border-color: #2e3238; color: #e6e3dc;
+  box-shadow: inset 0 1px rgba(255,255,255,.06); min-height: 40px; padding: 8px 10px;
+}
+button:hover { border-color: #ff8a1f; }
+button:active { background: #30353b; }
+button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
+  outline: 2px solid #ff8a1f; outline-offset: 1px;
+}
+button.primary { color: #1a1206; background: #ff8a1f; border-color: #cc6f18; box-shadow: none; }
+button:disabled { color: #5c6066; background: #1f2226; box-shadow: none; opacity: .65; cursor: default; }
+.card { border: 1px solid #2e3238; border-top: 3px solid #3a3f46; padding: 12px; margin-bottom: 12px; background: #1f2226; }
+.panel > .card:first-of-type { border-top-color: #ff8a1f; }
+input[type=number], input[type=text], textarea, select { background: #1a1d21; border-color: #2e3238; color: #e6e3dc; min-height: 36px; }
+input[type=number], input[type=text] { font-size: 16px; }
+input[type=range] { min-height: 28px; }
+#rA { accent-color: var(--a); }
+#rB { accent-color: var(--b); }
+.presets button { min-height: 42px; }
+.out, .now { background: #0f1114; border: 1px solid #2e3238; color: #e6e3dc; }
+.code code { background: #0f1114; color: #e6e3dc; }
+.g3 > div { min-width: 0; }
+.warn { background: #3a2a12; border-color: #caa14d; color: #ffcf99; }
+.listing { background: #121417; }
+.listing div.cm { color: #6b7076; }
+.listing div.cur { background: #2a3f4a; color: #cdebff; box-shadow: inset 3px 0 #ff8a1f; }
+.msgs div.warn { color: #ffcf99; }
+#pPlay:not(:disabled) { background: #16301c; border-color: #3a7a46; color: #8fe3a0; }
+.prog-bar { display: grid; grid-template-columns: 1fr 1fr; }
+.prog-bar button { min-height: 44px; }
+.tabs {
+  grid-area: tabs; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1px; background: #2e3238; padding: 3px; margin: 0; border-top: 1px solid #2e3238;
+}
+.tabs button { background: #1f2226; min-width: 0; color: #c9c6bf; border: 0; border-bottom: 3px solid #3a3f46; }
+.tabs button.on { background: #ff8a1f; color: #1a1206; border-bottom-color: #cc6f18; }
+.hud {
+  left: 10px; top: 10px; max-width: calc(100% - 72px); padding: 0; border-radius: 0;
+  background: rgba(20, 22, 25, .92); border: 1px solid #2e3238; box-shadow: none;
+}
+.hud .big { display: flex; gap: 0; font-size: 0; }
+.hud .ca, .hud .cb {
+  display: block; font-size: 18px; padding: 5px 12px;
+  font-variant-numeric: tabular-nums; border-top: 3px solid currentColor;
+}
+.hud .ca { border-right: 1px solid #2e3238; }
+.hud .small { color: #8d9096; font-size: 12px; padding: 3px 10px; border-top: 1px solid #2e3238; }
+.hud .line {
+  color: #1a1206; background: #ff8a1f; padding: 5px 8px; margin: 0;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.views {
+  left: 0; bottom: 0; width: 100%; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1px; padding: 4px; background: #2e3238; border-top: 1px solid #2e3238;
+}
+.views button { min-width: 0; min-height: 40px; border-radius: 0; background: #1f2226; padding: 6px; color: #e6e3dc; }
+.views button[aria-pressed=true] { color: #1a1206; background: #ff8a1f; border-color: #cc6f18; box-shadow: none; }
+.expand-view {
+  position: absolute; top: 10px; right: 10px; width: 42px; height: 42px;
+  border-radius: 0; color: #e6e3dc; background: #262a2f; border: 1px solid #2e3238;
+}
+.expand-view::before, .expand-view::after { content: ''; position: absolute; width: 8px; height: 8px; }
+.expand-view::before { right: 10px; top: 10px; border-right: 2px solid; border-top: 2px solid; }
+.expand-view::after { left: 10px; bottom: 10px; border-left: 2px solid; border-bottom: 2px solid; }
+.model-only .expand-view::before, .model-only .expand-view::after { transform: rotate(180deg); }
+.app.model-only {
+  grid-template-areas: "header" "view"; grid-template-columns: 1fr;
+  grid-template-rows: 46px minmax(0, 1fr);
+}
+.model-only .panel, .model-only .tabs { display: none; }
+.hint3d { color: #c9c6bf; background: rgba(20, 22, 25, .8); right: 64px; border-radius: 0; }
+@media (max-width: 820px) and (orientation: portrait) {
+  .app {
+    grid-template-areas: "header" "view" "panel" "tabs"; grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: 42px minmax(215px, 43dvh) minmax(0, 1fr) 52px;
+  }
+  .cnc-header { padding: 0 10px; gap: 10px; justify-content: space-between; }
+  .cnc-header h1 { font-size: 15px; }
+  .cnc-header .sub { font-size: 10px; }
+  .panel { border-left: 0; border-top: 1px solid #2e3238; padding: 10px; }
+  .hud .ca, .hud .cb { font-size: 16px; padding: 4px 9px; }
+  .hud .small { font-size: 11px; }
+  .hint3d { display: none; }
+}
+@media (orientation: landscape) and (max-height: 540px) {
+  .app {
+    grid-template-areas: "header header" "view panel" "tabs tabs";
+    grid-template-columns: minmax(0, 1fr) minmax(300px, 39%);
+    grid-template-rows: 34px minmax(0, 1fr) 46px;
+  }
+  .cnc-header h1 { font-size: 15px; }
+  .panel { border-top: 0; border-left: 1px solid #2e3238; padding: 8px; }
+  .hint3d { display: none; }
+  .hud .ca, .hud .cb { font-size: 14px; padding: 3px 8px; }
+  .hud .small { font-size: 10px; padding: 2px 8px; }
+  .views button { min-height: 34px; }
+}
+/* ===== общая нижняя навигация (Журнал / Справочник / Голова) ===== */
+.gnav{position:fixed;left:0;right:0;bottom:0;z-index:6;display:flex;height:56px;
+  background:#1a1d21;border-top:1px solid #2e3238;padding-bottom:env(safe-area-inset-bottom)}
+.gnav-item{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+  color:#8d9096;text-decoration:none;font:12px/1.1 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+.gnav-ic{font-size:20px;line-height:1}
+.gnav-item.on{color:#ffb366}
+.app.model-only ~ .gnav{display:none}
+.gnav-badges{display:flex;gap:2px}
+.gnav-badges b{font-style:normal;font-weight:800;font-size:10px;line-height:14px;width:14px;height:14px;border-radius:4px;text-align:center}
+.gnav-badges b.f{background:#2b2f12;color:#e8d84a}
+.gnav-badges b.s{background:#16302c;color:#5fd3c4}
+</style>
+<script type="importmap">{ "imports": { "three": "./vendor/three.module.js" } }</script>
+</head>
+<body>
+<div class="app">
+  <header class="cnc-header">
+    <h1>Голова TUPC</h1>
+    <div class="sub">FPT TESSEN-TURN · 840D</div>
+  </header>
+  <div class="view" id="view">
+    <button type="button" class="expand-view" id="expandView" aria-expanded="false" aria-label="Развернуть модель" title="Развернуть модель"></button>
+    <div class="hud">
+      <div class="big"><span class="ca">a <span id="hudA">0.000</span>°</span> &nbsp; <span class="cb">b <span id="hudB">0.000</span>°</span></div>
+      <div class="small" id="hudV">i 0 j 0 k −1</div>
+      <div class="line" id="hudLine" hidden></div>
+    </div>
+    <div class="views">
+      <button data-view="3d" aria-pressed="true">3D</button>
+      <button data-view="front">Спереди</button>
+      <button data-view="side">Сбоку</button>
+      <button data-view="top">Сверху</button>
+    </div>
+    <div class="hint3d">Поворот — перетаскиванием · масштаб — двумя пальцами или колесом</div>
+  </div>
+
+  <div class="panel">
+
+
+    <div class="card">
+      <div class="tab on" id="tab-ang">
+        <div class="row"><b style="color:var(--a)">a</b><input type="range" id="rA" min="0" max="360" step="0.5" value="0"><input type="number" id="nA" step="0.001" value="0"></div>
+        <div class="row"><b style="color:var(--b)">b</b><input type="range" id="rB" min="-180" max="180" step="0.5" value="0"><input type="number" id="nB" step="0.001" value="0"></div>
+        <div class="note">a — 1-й корпус (у ползуна), 0…360°. b — 2-й корпус (наклонный, 45°), −180…+180°. Это то, что пишется в <code>M_20(a,b)</code>.</div>
+        <div class="presets" id="presets">
+          <button data-a="0" data-b="0">Вниз Z−</button>
+          <button data-a="180" data-b="0">Вверх Z+</button>
+          <button data-a="0" data-b="180">Гориз. Y−</button>
+          <button data-a="90" data-b="0">Вбок X−</button>
+          <button data-a="270" data-b="0">Вбок X+</button>
+          <button data-a="294.47" data-b="114.47">45° фронт</button>
+        </div>
+      </div>
+
+      <div class="tab" id="tab-vec">
+        <div class="note" style="margin:0 0 8px">Куда смотрит <b>вершина</b> инструмента. Длина вектора любая — программа сама приведёт к 1.</div>
+        <div class="g3">
+          <div><label>i (X)</label><input type="number" id="vI" step="0.001" value="0"></div>
+          <div><label>j (Y)</label><input type="number" id="vJ" step="0.001" value="0"></div>
+          <div><label>k (Z)</label><input type="number" id="vK" step="0.001" value="-1"></div>
+        </div>
+        <div style="margin-top:10px"><button class="primary" id="goVec">Посчитать</button></div>
+        <div id="vecOut"></div>
+      </div>
+
+      <div class="tab" id="tab-cyc">
+        <div class="note" style="margin:0 0 8px">Режим «ось за осью» (57): поворот вокруг X, потом Y, потом Z — как на экране CYCLE800.</div>
+        <div class="g3">
+          <div><label>Rot X (A)</label><input type="number" id="cA" step="0.001" value="0"></div>
+          <div><label>Rot Y (B)</label><input type="number" id="cB" step="0.001" value="0"></div>
+          <div><label>Rot Z (C)</label><input type="number" id="cC" step="0.001" value="0"></div>
+        </div>
+        <div style="margin-top:10px"><button class="primary" id="goCyc">Посчитать</button></div>
+        <div id="cycOut"></div>
+      </div>
+
+      <div class="tab" id="tab-prg">
+        <div class="note" style="margin:0 0 8px">Программа Sinumerik: G0/G1/G2/G3, G17–G19, G90/G91, M_20, CYCLE800, COMPTAB, TRANS/ROT, SUPA, стол C. Циклы (CYCLE81, POCKET4…) пока не рисуются.</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <select id="pSample">
+            <option value="sides">Пример стр. 22 — четыре стороны</option>
+            <option value="comptab">Пример стр. 24 — COMPTAB, 45°</option>
+          </select>
+          <button id="pFileBtn">Открыть файл…</button>
+          <input type="file" id="pFile" accept=".mpf,.spf,.txt,.nc,.h,.arc,text/plain" hidden>
+        </div>
+        <details id="pEditBox" style="margin-top:8px"><summary>Текст программы (можно вставить свою)</summary>
+          <textarea id="pText" spellcheck="false"></textarea>
+        </details>
+        <div class="g3" style="margin-top:8px">
+          <div><label>Заготовка X, мм</label><input type="number" id="pSX" value="860"></div>
+          <div><label>Y, мм</label><input type="number" id="pSY" value="500"></div>
+          <div><label>Z, мм</label><input type="number" id="pSZ" value="420"></div>
+        </div>
+        <div class="note">Ноль детали (G54) — в центре заготовки. Реальных смещений G54 я не знаю, поэтому так.</div>
+        <div class="prog-bar">
+          <button class="primary" id="pLoad">Показать путь</button>
+          <button id="pPlay" disabled>▶ Пуск</button>
+          <button id="pStep" disabled>Шаг</button>
+          <button id="pReset" disabled>⏮ В начало</button>
+        </div>
+        <div class="row" style="grid-template-columns:auto 1fr 50px"><span class="lbl" style="margin:0">Скорость</span><input type="range" id="pSpeed" min="-2" max="3" step="0.5" value="0"><span id="pSpeedV" class="lbl" style="margin:0">×1</span></div>
+        <div class="now" id="pNow">Нажми «Показать путь».</div>
+        <div class="listing" id="pList"></div>
+        <div class="msgs" id="pMsgs"></div>
+      </div>
+    </div>
+
+    <label class="chk"><input type="checkbox" id="smooth" checked> плавный поворот (видно, как едут корпуса)</label>
+
+    <div class="card res">
+      <div class="lbl">Положение головы</div>
+      <div class="ab"><span class="a">a = <span id="resA">0</span>°</span><span class="b">b = <span id="resB">0</span>°</span></div>
+      <div class="vec" id="resV"></div>
+      <div class="desc" id="resD"></div>
+      <div class="code"><code id="codeM20"></code><button data-copy="codeM20">копия</button></div>
+      <div class="code"><code id="codeDir"></code><button data-copy="codeDir">копия</button></div>
+      <div class="code"><code id="codeAx"></code><button data-copy="codeAx">копия</button></div>
+      <div class="note">1-я строка — повернуть голову циклом FPT. 2-я — CYCLE800 «прямо» (192, углы корпусов). 3-я — CYCLE800 «ось за осью» (57).</div>
+    </div>
+
+    <div class="card">
+      <details id="geomBox">
+        <summary>Точки и размеры головы</summary>
+        <div class="warn" style="margin-top:10px">Размеры примерные — по рисункам. Точные надо снять со стойки (данные поворота CYCLE800 «TUPC»).</div>
+        <div class="g3" style="margin-top:10px;grid-template-columns:repeat(4,1fr)">
+          <div><label>d1, мм</label><input type="number" id="gD1" step="1"></div>
+          <div><label>h, мм</label><input type="number" id="gH" step="1"></div>
+          <div><label>d2, мм</label><input type="number" id="gD2" step="1"></div>
+          <div><label>L, мм</label><input type="number" id="gL" step="1"></div>
+        </div>
+        <div class="note"><b>d1</b> — от торца ползуна до точки P, где сходятся оси a и b (белая точка).
+          <b>h</b> — насколько ось шпинделя смещена от P: она пересекает ось b в точке S (розовая точка), на h ниже и на h дальше P.
+          <b>d2</b> — от S до торца шпинделя. <b>L</b> — вылет инструмента.</div>
+        <div class="lbl" style="margin-top:10px">Вершина инструмента относительно торца ползуна (X Y Z)</div>
+        <div class="out" id="tipOut"></div>
+        <div class="lbl" style="margin-top:10px">Обратно: где вершина → где должен быть торец ползуна</div>
+        <div class="g3">
+          <div><label>X вершины</label><input type="number" id="tX" value="0"></div>
+          <div><label>Y вершины</label><input type="number" id="tY" value="0"></div>
+          <div><label>Z вершины</label><input type="number" id="tZ" value="0"></div>
+        </div>
+        <div class="out" id="refOut"></div>
+        <div class="lbl" style="margin-top:10px">Стол C (только картинка), °</div>
+        <div class="row" style="grid-template-columns:1fr 96px"><input type="range" id="rC" min="0" max="360" step="1" value="0"><input type="number" id="nC" step="1" value="0"></div>
+      </details>
+    </div>
+
+    <div class="note">Расчёт углов проверен на всех примерах мануала FPT (M_20, таблица направлений, CYCLE800). Голова не может смотреть в Y+ (в сторону ползуна).</div>
+  </div>
+  <div class="tabs" id="tabs">
+      <button data-tab="ang" class="on">Углы a / b</button>
+      <button data-tab="vec">Вектор</button>
+      <button data-tab="cyc">CYCLE800</button>
+      <button data-tab="prg">Программа</button>
+  </div>
+</div>
+<nav class="gnav" aria-label="Разделы">
+  <a href="../" class="gnav-item"><span class="gnav-ic">📒</span><span>Журнал</span></a>
+  <a href="../spravochnik/" class="gnav-item"><span class="gnav-ic">🔔</span><span>ALARMS</span></a>
+  <a href="./" class="gnav-item on"><span class="gnav-ic">🔄</span><span>Голова</span></a>
+</nav>
+<script type="module" src="./app.js"></script>
+<script>if('serviceWorker' in navigator && location.protocol==='https:')navigator.serviceWorker.register('../sw.js').catch(()=>{});</script>
+</body>
+</html>
