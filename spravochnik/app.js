@@ -1,7 +1,16 @@
 'use strict';
 const $ = id => document.getElementById(id);
-const labels = {fanuc:'Аварии FANUC', siemens:'Аварии SINUMERIK', gcodes:'G-команды SINUMERIK'};
-const symbols = {fanuc:'F', siemens:'S', gcodes:'G'};
+// Один каталог = один пункт здесь. Чтобы добавить список ошибок своего станка:
+// 1) положить JSON-файл рядом (формат как fanuc.json/siemens.json — code/title/series/source/page);
+// 2) добавить сюда одну строку {key, label, symbol, file};
+// 3) (не обязательно) добавить цвет значка в app.css — класс .symbol.<key>, иначе будет серый по умолчанию.
+const CATALOGS = [
+  {key:'fanuc', label:'Аварии FANUC', symbol:'F', file:'fanuc.json'},
+  {key:'siemens', label:'Аварии SINUMERIK', symbol:'S', file:'siemens.json'},
+  {key:'gcodes', label:'G-команды SINUMERIK', symbol:'G', file:'gcodes.json'},
+];
+const labels = Object.fromEntries(CATALOGS.map(c=>[c.key,c.label]));
+const symbols = Object.fromEntries(CATALOGS.map(c=>[c.key,c.symbol]));
 const fanucPrefixes = {PS:'Программа и работа',BG:'Фоновое редактирование',SR:'Связь',SV:'Сервопривод',OT:'Выход за пределы',IO:'Файлы и ввод-вывод',SW:'Запись параметров',PW:'Требуется выключение питания',SP:'Шпиндель',OH:'Перегрев',DS:'Прочие аварии',IE:'Предотвращение сбоев'};
 const catalogs = {};
 let limit = 30;
@@ -28,12 +37,12 @@ function updateFilters() {
 function showCatalogs() {
   $('listTitle').textContent='Каталоги';
   $('count').textContent='';
-  for (const [key,label] of Object.entries(labels)) {
+  for (const {key,label,symbol} of CATALOGS) {
     const button=element('button',undefined,'catalog');
     const name=element('span');
     const n=new Set(catalogs[key].map(r=>r.code)).size;
     name.append(element('strong',label),element('small',n.toLocaleString('ru')+' кодов','meta'));
-    button.append(element('span',symbols[key],'symbol'),name,element('span','›','chevron'));
+    button.append(element('span',symbol,'symbol '+key),name,element('span','›','chevron'));
     button.onclick=()=>{ $('section').value=key; updateFilters(); };
     $('results').append(button);
   }
@@ -51,7 +60,7 @@ function showCard(group, requestedPrefix) {
   const refs=element('div',undefined,'refs');
   for(const item of group) {
     const a=element('a',item.series+(item.page ? (item.source.includes('studylib.net') ? ' · стр. руководства ' : ' · стр. PDF ')+item.page : ' · руководство')+' ↗');
-    const link=new URL(item.source);
+    const link=new URL(item.source, location.href);
     if(link.protocol!=='https:' && link.protocol!=='http:')continue;
     if(item.page && /\.pdf$/i.test(link.pathname))link.hash='page='+item.page;
     a.href=link.href; a.target='_blank'; a.rel='noopener noreferrer'; refs.append(a);
@@ -87,12 +96,17 @@ function render() {
   for(const group of [...groups.values()].slice(0,limit)) showCard(group,requestedPrefix);
   $('more').hidden=limit>=groups.size;
 }
+function populateSections() {
+  const sel = $('section');
+  for (const {key,label} of CATALOGS) sel.add(new Option(label,key));
+}
 async function load() {
+  populateSections();
   try {
-    await Promise.all(Object.keys(labels).map(async category=>{
-      const response=await fetch(category+'.json');
+    await Promise.all(CATALOGS.map(async ({key,file})=>{
+      const response=await fetch(file);
       if(!response.ok)throw Error(response.status);
-      catalogs[category]=(await response.json()).map(row=>({...row,category,
+      catalogs[key]=(await response.json()).map(row=>({...row,category:key,
         keys:[row.code,...(row.aliases||[])].map(codeKey),words:normal([row.title,row.message_en].filter(Boolean).join(' '))}));
     }));
     updateFilters();
