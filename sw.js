@@ -1,9 +1,21 @@
-// Борт-журнал ЧПУ — работа без интернета.
-// Страница: сначала сеть (чтобы приходили обновления), без сети — из кэша.
-// Шрифты, иконки, просмотрщик PDF: из кэша, обновляются в фоне. Яндекс Диск — только сеть.
-// Фото и схемы лежат в отдельном кэше 'bort-files' (его ведёт сама страница).
-const CACHE = 'bort-v1';
-const CORE = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './apple-touch-icon.png'];
+// Борт-журнал ЧПУ — работа без интернета. Одно приложение: Журнал + Справочник ошибок + Голова TUPC.
+// Страница: сначала сеть (чтобы приходили обновления), без сети — из кэша той же страницы.
+// Остальные файлы (JS, JSON, картинки, 3D-библиотека): из кэша, обновляются в фоне. Яндекс Диск — только сеть.
+// Фото и схемы Журнала лежат в отдельном кэше 'bort-files' (его ведёт сама страница).
+const CACHE = 'bort-v2';
+const CORE = [
+  './', './index.html', './manifest.webmanifest',
+  './icon-192.png', './icon-512.png', './icon-maskable.png', './apple-touch-icon.png',
+
+  './spravochnik/', './spravochnik/index.html', './spravochnik/app.css', './spravochnik/app.js',
+  './spravochnik/fanuc.json', './spravochnik/siemens.json', './spravochnik/gcodes.json',
+  './spravochnik/icon-192.png', './spravochnik/icon-512.png', './spravochnik/icon-maskable.png', './spravochnik/apple-touch-icon.png',
+
+  './golova/', './golova/index.html', './golova/app.js', './golova/kinematics.js',
+  './golova/gcode.js', './golova/head3d.js',
+  './golova/vendor/three.module.js', './golova/vendor/OrbitControls.js',
+  './golova/icon-192.png', './golova/icon-512.png', './golova/icon-maskable.png', './golova/apple-touch-icon.png',
+];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(CORE)));
@@ -23,8 +35,8 @@ self.addEventListener('fetch', e => {
 
   if (req.mode === 'navigate') {
     e.respondWith(
-      fetch(req).then(r => { caches.open(CACHE).then(c => c.put('./index.html', r.clone())); return r; })
-        .catch(() => caches.match('./index.html'))
+      fetch(req).then(r => { caches.open(CACHE).then(c => c.put(req, r.clone())); return r; })
+        .catch(() => caches.match(req).then(hit => hit || caches.match('./index.html')))
     );
     return;
   }
