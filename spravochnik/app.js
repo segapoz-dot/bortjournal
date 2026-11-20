@@ -139,11 +139,86 @@ $('pdfClose').onclick=closePdf;
 $('pdfPrev').onclick=()=>{if(pdfPage>1){--pdfPage;renderPdfPage();}};
 $('pdfNext').onclick=()=>{if(pdfDocument && pdfPage<pdfDocument.numPages){++pdfPage;renderPdfPage();}};
 document.addEventListener('keydown',e=>{if(e.key==='Escape' && !$('pdfViewer').hidden) closePdf();});
+
+let manualSearchId=0;
+async function searchManuals(query, section, series) {
+  const id=++manualSearchId;
+  const button=$('manualSearch');
+  button.disabled=true;
+  button.textContent='Отменить поиск в PDF';
+  button.disabled=false;
+  button.onclick=()=>{manualSearchId++;button.textContent='Искать в PDF руководств';button.onclick=()=>searchManuals(query,section,series);$('manualStatus').textContent='Поиск остановлен.';};
+  const sources=new Map();
+  for(const [category,rows] of Object.entries(catalogs)) {
+    if(section && category!==section) continue;
+    for(const row of rows) {
+      if(series && row.series!==series) continue;
+      if (!/\.pdf$/i.test(new URL(row.source,location.href).pathname)) continue;
+      if(!sources.has(row.source)) sources.set(row.source,row.series);
+    }
+  }
+  let found=0, scanned=0, failed=0;
+  const needle=normal(query);
+  try {
+    pdfModule ||= import('https://cdn.jsdelivr.net/npm/pdfjs-dist@5.6.205/build/pdf.min.mjs');
+    const pdfjs=await pdfModule;
+    pdfjs.GlobalWorkerOptions.workerSrc='https://cdn.jsdelivr.net/npm/pdfjs-dist@5.6.205/build/pdf.worker.min.mjs';
+    for(const [source,label] of sources) {
+      if(id!==manualSearchId) return;
+      const status=$('manualStatus');
+      status.textContent='Проверяю '+label+'…';
+      let doc;
+      try {
+        doc=await pdfjs.getDocument({url:new URL(source,location.href).href,
+          cMapUrl:'https://cdn.jsdelivr.net/npm/pdfjs-dist@5.6.205/cmaps/',cMapPacked:true}).promise;
+        for(let page=1;page<=doc.numPages;page++) {
+          if(id!==manualSearchId) return;
+          const content=await (await doc.getPage(page)).getTextContent();
+          const pageText=content.items.map(item=>item.str||'').join(' ');
+          // Match a complete alarm number, including PDF variants with leading zeros.
+          const code=/^\d+$/.test(needle)
+            ? new RegExp('(^|\\D)0*'+needle+'(?!\\d)','i')
+            : null;
+          const match=code ? code.exec(pageText) : null;
+          const position=match ? match.index : normal(pageText).indexOf(needle);
+          if(position>=0) {
+            found++;
+            const card=element('article',undefined,'card');
+            card.append(element('h3',label+' · стр. PDF '+page));
+            card.append(element('p',pageText.slice(Math.max(0,position-65),position+110).trim()+'…'));
+            const open=element('button','Открыть страницу ↗','manual-open');
+            open.type='button';
+            open.onclick=()=>openPdf(new URL(source,location.href).href,page,query);
+            card.append(open);
+            $('manualResults').append(card);
+          }
+          scanned++;
+          if(page%10===0) {
+            status.textContent='Проверено страниц: '+scanned+' · найдено: '+found;
+            await new Promise(resolve=>setTimeout(resolve,0));
+          }
+        }
+      } catch {failed++;} finally {if(doc)await doc.destroy();}
+    }
+    if(id===manualSearchId) status.textContent=found
+      ? 'Найдено страниц: '+found+(failed ? ' · некоторые PDF не удалось проверить' : '')
+      : 'В доступных PDF совпадений нет'+(failed ? '; некоторые руководства не загрузились.' : '.');
+  } catch {
+    if(id===manualSearchId) $('manualStatus').textContent='Не удалось загрузить поиск PDF. Проверь соединение.';
+  } finally {
+    if(id===manualSearchId) {
+      button.textContent='Искать в PDF руководств';
+      button.onclick=()=>searchManuals(query,section,series);
+    }
+  }
+}
+
 function render() {
   if(!Object.keys(labels).every(k=>catalogs[k])) return;
   const q=normal($('query').value), k=codeKey(q);
   const section=$('section').value, series=$('series').value, prefix=$('prefix').value;
   const requestedPrefix=prefix || q.match(/^[A-Z]+/)?.[0] || '';
+  ++manualSearchId;
   $('results').replaceChildren(); $('more').hidden=true;
   if (!q && !section && !series) { showCatalogs(); return; }
   const groups = new Map();
@@ -164,7 +239,15 @@ function render() {
   }
   $('listTitle').textContent=q?'Результаты поиска':(labels[section]||'Результаты');
   $('count').textContent=groups.size.toLocaleString('ru');
-  if(!groups.size) $('results').textContent='Совпадений в загруженных каталогах нет. Проверь код или выбери все стойки.';
+  if(!groups.size) {
+    $('results').append(element('p','В карточках каталога совпадений нет. Можно проверить текст заводских PDF.'));
+    const button=element('button','Искать в PDF руководств','manual-open');
+    button.id='manualSearch';
+    button.onclick=()=>searchManuals(q,section,series);
+    const status=element('p',undefined,'meta');status.id='manualStatus';status.setAttribute('role','status');
+    const found=element('div');found.id='manualResults';
+    $('results').append(button,status,found);
+  }
   for(const group of [...groups.values()].slice(0,limit)) showCard(group,requestedPrefix);
   $('more').hidden=limit>=groups.size;
 }
