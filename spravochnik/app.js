@@ -54,7 +54,21 @@ function showCard(group, requestedPrefix) {
   const code=selectedCode || row.code;
   const kind=selectedCode ? fanucPrefixes[requestedPrefix] : labels[row.category];
   card.append(element('h3',code),element('div',kind,'meta'));
-  if(row.title)card.append(element('p',row.title));
+  if(row.title && !row.title.includes('· указатель')) card.append(element('p',row.title));
+  if(row.title?.includes('· указатель')) {
+    const detail=element('div','Загружаю описание из руководства…','manual-detail');
+    card.append(detail);
+    const manual=group.find(item=>/\.pdf$/i.test(new URL(item.source,location.href).pathname));
+    if(manual) {
+      const observer=new IntersectionObserver(entries=>{
+        if(entries.some(entry=>entry.isIntersecting)) {
+          observer.disconnect();
+          loadAlarmDetails(manual,detail);
+        }
+      },{rootMargin:'250px'});
+      observer.observe(card);
+    } else detail.textContent='Открой заводское руководство для описания ошибки.';
+  }
   if(row.message_en)card.append(element('p','В руководстве: '+row.message_en,'original-message'));
   if(!row.title && !row.message_en)card.append(element('p','Для этого кода в каталоге пока нет расшифровки. Сверь сообщение на стойке с руководством.'));
   const refs=element('div',undefined,'refs');
@@ -72,6 +86,43 @@ function showCard(group, requestedPrefix) {
     refs.append(a);
   }
   card.append(refs); $('results').append(card);
+}
+const alarmDocuments=new Map();
+async function loadAlarmDetails(row, target) {
+  try {
+    pdfModule ||= import('https://cdn.jsdelivr.net/npm/pdfjs-dist@5.6.205/build/pdf.min.mjs');
+    const pdfjs=await pdfModule;
+    pdfjs.GlobalWorkerOptions.workerSrc='https://cdn.jsdelivr.net/npm/pdfjs-dist@5.6.205/build/pdf.worker.min.mjs';
+    const url=new URL(row.source,location.href).href;
+    if(!alarmDocuments.has(url)) {
+      alarmDocuments.set(url,pdfjs.getDocument({url,
+        cMapUrl:'https://cdn.jsdelivr.net/npm/pdfjs-dist@5.6.205/cmaps/',cMapPacked:true}).promise);
+    }
+    const doc=await alarmDocuments.get(url);
+    const page=Number(row.page);
+    if(!page || page>doc.numPages) throw Error('page');
+    const getText=async number=>{
+      const contents=await (await doc.getPage(number)).getTextContent();
+      return contents.items.map(item=>item.str+(item.hasEOL?'\n':' ')).join('');
+    };
+    let pageText=await getText(page);
+    const heading=new RegExp('(?:^|\\n)\\s*'+row.code+'\\s+([^\\n]+)','m');
+    const start=heading.exec(pageText);
+    if(!start) throw Error('alarm heading');
+    let body=pageText.slice(start.index+start[0].length);
+    if(!/Remedy\s*:/i.test(body) && page<doc.numPages) body+='\n'+await getText(page+1);
+    const title=start[1].trim();
+    const remedy=/Remedy\s*:\s*([\s\S]*?)(?=\n\s*(?:Program(?:m)?\s+continuation|\d{4,6}\s{2,})|$)/i.exec(body)?.[1]
+      ?.replace(/\s+/g,' ').trim();
+    const definition=/(?:Definitions|Explanation)\s*:\s*([\s\S]*?)(?=\n\s*(?:Reactions?|Remedy|Program(?:m)?\s+continuation)\s*:|$)/i.exec(body)?.[1]
+      ?.replace(/\s+/g,' ').trim();
+    target.replaceChildren(element('p',title));
+    if(definition) target.append(element('p','Описание (из руководства, англ.): '+definition,'original-message'));
+    if(remedy) target.append(element('p','Устранение (из руководства, англ.): '+remedy,'original-message'));
+    else target.append(element('p','Способ устранения см. в руководстве на указанной странице.','meta'));
+  } catch {
+    target.textContent='Не удалось загрузить текст. Открой страницу заводского руководства ниже.';
+  }
 }
 let pdfModule, pdfDocument, pdfPage=1, pdfRequest=0, pdfPreviousFocus;
 async function openPdf(url, page, code) {
