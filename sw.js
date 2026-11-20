@@ -2,7 +2,7 @@
 // Страница: сначала сеть (чтобы приходили обновления), без сети — из кэша той же страницы.
 // Остальные файлы (JS, JSON, картинки, 3D-библиотека): из кэша, обновляются в фоне. Яндекс Диск — только сеть.
 // Фото и схемы Журнала лежат в отдельном кэше 'bort-files' (его ведёт сама страница).
-const CACHE = 'bort-v8';
+const CACHE = 'bort-v9';
 const CORE = [
   './', './index.html', './manifest.webmanifest',
   './icon-192.png', './icon-512.png', './icon-maskable.png', './apple-touch-icon.png',
@@ -73,6 +73,17 @@ self.addEventListener('fetch', e => {
       fetch(req).then(r => { caches.open(CACHE).then(c => c.put(req, r.clone())); return r; })
         .catch(() => caches.match(req).then(hit => hit || caches.match('./index.html')))
     );
+    return;
+  }
+
+  // Always prefer the current viewer code while online. Older installed versions
+  // kept serving app.js from their cache even after a fresh page navigation.
+  if (url.pathname === new URL('./spravochnik/app.js', self.registration.scope).pathname ||
+      url.pathname === new URL('./spravochnik/app.css', self.registration.scope).pathname) {
+    e.respondWith(fetch(req).then(response => {
+      if (response.ok) caches.open(CACHE).then(cache => cache.put(req, response.clone()));
+      return response;
+    }).catch(() => caches.match(req)));
     return;
   }
 
