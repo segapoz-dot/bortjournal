@@ -2,7 +2,7 @@
 // Страница: сначала сеть (чтобы приходили обновления), без сети — из кэша той же страницы.
 // Остальные файлы (JS, JSON, картинки, 3D-библиотека): из кэша, обновляются в фоне. Яндекс Диск — только сеть.
 // Фото и схемы Журнала лежат в отдельном кэше 'bort-files' (его ведёт сама страница).
-const CACHE = 'bort-v3';
+const CACHE = 'bort-v4';
 const CORE = [
   './', './index.html', './manifest.webmanifest',
   './icon-192.png', './icon-512.png', './icon-maskable.png', './apple-touch-icon.png',
@@ -37,6 +37,35 @@ self.addEventListener('fetch', e => {
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
   if (url.hostname.includes('yandex') || url.pathname.includes('/__files/') || url.pathname.includes('/data/')) return;
+
+  // PDF viewers (especially on iOS) request byte ranges. A cached 200 response
+  // cannot satisfy a Range request, so use the network's native 206 response.
+  // Keep the complete cached manual as an offline fallback.
+  if (url.pathname.toLowerCase().endsWith('.pdf')) {
+    e.respondWith(fetch(req).catch(async () => {
+      const cached = await caches.match(url.href, {ignoreSearch: true});
+      if (!cached) return Response.error();
+      const range = req.headers.get('Range');
+      if (!range) return cached;
+      const blob = await cached.blob();
+      const match = /^bytes=(\d*)-(\d*)$/.exec(range);
+      if (!match || (!match[1] && !match[2])) return new Response(null, {status: 416, headers: {'Content-Range': 'bytes */' + blob.size}});
+      const start = match[1] ? Number(match[1]) : Math.max(0, blob.size - Number(match[2]));
+      const end = match[1] && match[2] ? Number(match[2]) : blob.size - 1;
+      if (start >= blob.size || end < start) return new Response(null, {status: 416, headers: {'Content-Range': 'bytes */' + blob.size}});
+      const last = Math.min(end, blob.size - 1);
+      return new Response(blob.slice(start, last + 1, 'application/pdf'), {
+        status: 206,
+        headers: {
+          'Content-Type': 'application/pdf',
+          'Accept-Ranges': 'bytes',
+          'Content-Range': `bytes ${start}-${last}/${blob.size}`,
+          'Content-Length': String(last - start + 1)
+        }
+      });
+    }));
+    return;
+  }
 
   if (req.mode === 'navigate') {
     e.respondWith(
