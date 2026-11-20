@@ -59,13 +59,15 @@ function showCard(group, requestedPrefix) {
   if(!row.title && !row.message_en)card.append(element('p','Для этого кода в каталоге пока нет расшифровки. Сверь сообщение на стойке с руководством.'));
   const refs=element('div',undefined,'refs');
   for(const item of group) {
-    const a=element('a',item.series+(item.page ? (item.source.includes('studylib.net') ? ' · стр. руководства ' : ' · стр. PDF ')+item.page : ' · руководство')+' ↗');
     const link=new URL(item.source, location.href);
     if(link.protocol!=='https:' && link.protocol!=='http:')continue;
-    if(item.page && /\.pdf$/i.test(link.pathname))link.hash='page='+item.page;
-    a.href=link.href; a.target='_blank'; a.rel='noopener noreferrer';
-    if (/\.pdf$/i.test(link.pathname)) {
-      a.onclick=e=>{ e.preventDefault(); openPdf(link.href, item.page, code); };
+    const pdf=/\.pdf$/i.test(link.pathname);
+    const a=element(pdf ? 'button' : 'a', item.series+(item.page ? (item.source.includes('studylib.net') ? ' · стр. руководства ' : ' · стр. PDF ')+item.page : ' · руководство')+' ↗');
+    if (pdf) {
+      a.type='button';
+      a.onclick=()=>openPdf(link.href, item.page, code);
+    } else {
+      a.href=link.href; a.target='_blank'; a.rel='noopener noreferrer';
     }
     refs.append(a);
   }
