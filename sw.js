@@ -2,7 +2,7 @@
 // Страница: сначала сеть (чтобы приходили обновления), без сети — из кэша той же страницы.
 // Остальные файлы (JS, JSON, картинки, 3D-библиотека): из кэша, обновляются в фоне. Яндекс Диск — только сеть.
 // Фото и схемы Журнала лежат в отдельном кэше 'bort-files' (его ведёт сама страница).
-const CACHE = 'bort-v6';
+const CACHE = 'bort-v7';
 const CORE = [
   './', './index.html', './manifest.webmanifest',
   './icon-192.png', './icon-512.png', './icon-maskable.png', './apple-touch-icon.png',
@@ -40,9 +40,15 @@ self.addEventListener('fetch', e => {
 
   // PDF viewers (especially on iOS) request byte ranges. A cached 200 response
   // cannot satisfy a Range request, so use the network's native 206 response.
-  // Keep the complete cached manual as an offline fallback.
+  // Keep manuals that were opened online as an offline fallback.
   if (url.pathname.toLowerCase().endsWith('.pdf')) {
-    e.respondWith(fetch(req).catch(async () => {
+    e.respondWith(fetch(req).then(async response => {
+      if (response.ok && !req.headers.has('Range') && response.status === 200) {
+        const cache = await caches.open(CACHE);
+        cache.put(url.href.split('#')[0], response.clone()).catch(() => {});
+      }
+      return response;
+    }).catch(async () => {
       const cached = await caches.match(url.href, {ignoreSearch: true});
       if (!cached) return Response.error();
       const range = req.headers.get('Range');
