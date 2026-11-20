@@ -148,7 +148,6 @@ function render() {
   if (!q && !section && !series) { showCatalogs(); return; }
   const groups = new Map();
   const numeric=/^\d+$/.test(k);
-  const isCode=/^[A-Z]*\d+(?:\.\d+)?$/.test(k);
   for(const [category,rows] of Object.entries(catalogs)) {
     if(section && section!==category) continue;
     for(const row of rows) {
@@ -156,7 +155,8 @@ function render() {
       const keys=prefix ? row.keys.filter(s=>(s.match(/^[A-Z]+/)||[''])[0]===prefix) : row.keys;
       if(!keys.length) continue;
       const exact=keys.some(s=>s===k || (numeric && s.replace(/^[A-Z]+/,'')===k));
-      if(q && !exact && (isCode || (!keys.some(s=>s.startsWith(k)) && !row.words.includes(q)))) continue;
+      const codeMatch=keys.some(s=>s.startsWith(k) || (numeric && s.replace(/^[A-Z]+/,'').startsWith(k)));
+      if(q && !exact && !codeMatch && !row.words.includes(q)) continue;
       const groupKey=[category,row.code,row.title,row.message_en].join('|');
       if(!groups.has(groupKey)) groups.set(groupKey,[]);
       groups.get(groupKey).push(row);
