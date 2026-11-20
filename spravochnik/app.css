@@ -20,3 +20,5 @@ label{display:block;font-size:13px;font-weight:600;color:var(--muted)}.searchbox
 body.pdf-open{overflow:hidden}
 
 .refs button{display:block;width:100%;min-height:0;padding:0;margin-top:4px;border:0;background:none;text-align:left;color:#ffb366;text-decoration:underline;font-size:13px}
+
+.manual-open{color:#ffb366;margin:8px 0 12px}.manual-open:disabled{opacity:.6}#manualStatus{min-height:20px}#manualResults{margin-top:12px}
