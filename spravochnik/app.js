@@ -63,10 +63,80 @@ function showCard(group, requestedPrefix) {
     const link=new URL(item.source, location.href);
     if(link.protocol!=='https:' && link.protocol!=='http:')continue;
     if(item.page && /\.pdf$/i.test(link.pathname))link.hash='page='+item.page;
-    a.href=link.href; a.target='_blank'; a.rel='noopener noreferrer'; refs.append(a);
+    a.href=link.href; a.target='_blank'; a.rel='noopener noreferrer';
+    if (/\\.pdf$/i.test(link.pathname)) {
+      a.onclick=e=>{ e.preventDefault(); openPdf(link.href, item.page, code); };
+    }
+    refs.append(a);
   }
   card.append(refs); $('results').append(card);
 }
+let pdfModule, pdfDocument, pdfPage=1, pdfRequest=0, pdfPreviousFocus;
+async function openPdf(url, page, code) {
+  const request=++pdfRequest;
+  pdfPreviousFocus=document.activeElement;
+  $('pdfViewer').hidden=false;
+  document.body.classList.add('pdf-open');
+  $('pdfTitle').textContent=code+' · руководство';
+  $('pdfMessage').textContent='Загрузка страницы…';
+  $('pdfExternal').href=url;
+  $('pdfCanvas').hidden=true;
+  $('pdfClose').focus();
+  try {
+    pdfModule ||= import('https://cdn.jsdelivr.net/npm/pdfjs-dist@5.6.205/build/pdf.min.mjs');
+    const pdfjs=await pdfModule;
+    if (request!==pdfRequest) return;
+    pdfjs.GlobalWorkerOptions.workerSrc='https://cdn.jsdelivr.net/npm/pdfjs-dist@5.6.205/build/pdf.worker.min.mjs';
+    const loading=pdfjs.getDocument({url:url.split('#')[0], cMapUrl:'https://cdn.jsdelivr.net/npm/pdfjs-dist@5.6.205/cmaps/', cMapPacked:true});
+    const document=await loading.promise;
+    if (request!==pdfRequest) { await document.destroy(); return; }
+    pdfDocument=document;
+    pdfPage=Math.min(Math.max(1, Number.parseInt(page,10)||1),document.numPages);
+    await renderPdfPage();
+  } catch (error) {
+    if(request===pdfRequest) $('pdfMessage').textContent='Не удалось показать PDF. Попробуй открыть его отдельно.';
+  }
+}
+async function renderPdfPage() {
+  if (!pdfDocument) return;
+  const request=pdfRequest, pageNumber=pdfPage;
+  $('pdfMessage').textContent='Загрузка страницы…';
+  $('pdfPageLabel').textContent=pageNumber+' / '+pdfDocument.numPages;
+  $('pdfPrev').disabled=pageNumber<=1;
+  $('pdfNext').disabled=pageNumber>=pdfDocument.numPages;
+  try {
+    const page=await pdfDocument.getPage(pageNumber);
+    if(request!==pdfRequest || pageNumber!==pdfPage) return;
+    const scale=Math.min(2, (window.innerWidth-24)/page.getViewport({scale:1}).width);
+    const viewport=page.getViewport({scale:Math.max(.5,scale)});
+    const canvas=$('pdfCanvas');
+    canvas.width=Math.ceil(viewport.width*devicePixelRatio);
+    canvas.height=Math.ceil(viewport.height*devicePixelRatio);
+    canvas.style.width=viewport.width+'px';
+    canvas.style.height=viewport.height+'px';
+    canvas.hidden=false;
+    await page.render({canvasContext:canvas.getContext('2d'),viewport,transform:[devicePixelRatio,0,0,devicePixelRatio,0,0]}).promise;
+    if(request===pdfRequest && pageNumber===pdfPage) {
+      $('pdfMessage').textContent='';
+      $('pdfStage').scrollTop=0;
+    }
+  } catch {
+    if(request===pdfRequest) $('pdfMessage').textContent='Не удалось показать страницу.';
+  }
+}
+function closePdf() {
+  ++pdfRequest;
+  pdfDocument?.destroy();
+  pdfDocument=null;
+  $('pdfViewer').hidden=true;
+  $('pdfCanvas').hidden=true;
+  document.body.classList.remove('pdf-open');
+  pdfPreviousFocus?.focus();
+}
+$('pdfClose').onclick=closePdf;
+$('pdfPrev').onclick=()=>{if(pdfPage>1){--pdfPage;renderPdfPage();}};
+$('pdfNext').onclick=()=>{if(pdfDocument && pdfPage<pdfDocument.numPages){++pdfPage;renderPdfPage();}};
+document.addEventListener('keydown',e=>{if(e.key==='Escape' && !$('pdfViewer').hidden) closePdf();});
 function render() {
   if(!Object.keys(labels).every(k=>catalogs[k])) return;
   const q=normal($('query').value), k=codeKey(q);
