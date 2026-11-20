@@ -18,3 +18,5 @@ label{display:block;font-size:13px;font-weight:600;color:var(--muted)}.searchbox
 .pdf-message{margin:6px 14px;font-size:13px;color:var(--muted)}
 #pdfExternal{align-self:center;color:#ffb366;margin:4px 0 10px;font-size:13px}
 body.pdf-open{overflow:hidden}
+
+.refs button{display:block;width:100%;min-height:0;padding:0;margin-top:4px;border:0;background:none;text-align:left;color:#ffb366;text-decoration:underline;font-size:13px}
