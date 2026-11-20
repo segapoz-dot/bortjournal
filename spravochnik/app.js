@@ -64,7 +64,7 @@ function showCard(group, requestedPrefix) {
     if(link.protocol!=='https:' && link.protocol!=='http:')continue;
     if(item.page && /\.pdf$/i.test(link.pathname))link.hash='page='+item.page;
     a.href=link.href; a.target='_blank'; a.rel='noopener noreferrer';
-    if (/\\.pdf$/i.test(link.pathname)) {
+    if (/\.pdf$/i.test(link.pathname)) {
       a.onclick=e=>{ e.preventDefault(); openPdf(link.href, item.page, code); };
     }
     refs.append(a);
