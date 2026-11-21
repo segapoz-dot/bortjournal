@@ -8,6 +8,7 @@ const CATALOGS = [
   {key:'fanuc', label:'Аварии FANUC', symbol:'F', file:'fanuc.json'},
   {key:'siemens', label:'Аварии SINUMERIK', symbol:'S', file:'siemens.json'},
   {key:'gcodes', label:'G-команды SINUMERIK', symbol:'G', file:'gcodes.json'},
+  {key:'fanuc_drives', label:'Привода FANUC (LED-коды)', symbol:'P', file:'fanuc_drives.json'},
 ];
 const labels = Object.fromEntries(CATALOGS.map(c=>[c.key,c.label]));
 const symbols = Object.fromEntries(CATALOGS.map(c=>[c.key,c.symbol]));
