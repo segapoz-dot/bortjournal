@@ -2,13 +2,14 @@
 // Страница: сначала сеть (чтобы приходили обновления), без сети — из кэша той же страницы.
 // Остальные файлы (JS, JSON, картинки, 3D-библиотека): из кэша, обновляются в фоне. Яндекс Диск — только сеть.
 // Фото и схемы Журнала лежат в отдельном кэше 'bort-files' (его ведёт сама страница).
-const CACHE = 'bort-v4';
+const CACHE = 'bort-v5';
 const CORE = [
   './', './index.html', './manifest.webmanifest',
   './icon-192.png', './icon-512.png', './icon-maskable.png', './apple-touch-icon.png',
 
   './spravochnik/', './spravochnik/index.html', './spravochnik/app.css', './spravochnik/app.js',
   './spravochnik/fanuc.json', './spravochnik/siemens.json', './spravochnik/gcodes.json',
+  './spravochnik/fanuc_drives.json', './spravochnik/manuals/fanuc_alphai_servo_maint.pdf',
   './spravochnik/icon-192.png', './spravochnik/icon-512.png', './spravochnik/icon-maskable.png', './spravochnik/apple-touch-icon.png',
 
   './spravochnik/manuals/fanuc_30i_ru.pdf', './spravochnik/manuals/fanuc_0iD_en.pdf',
